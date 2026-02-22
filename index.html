@@ -3,1510 +3,1828 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BSJP Auto Scanner — Syariah IDX</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<title>IDX Syariah Scanner — BSJP & Swing Trade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #07090f;
-    --s1: #0d1117;
-    --s2: #161b22;
-    --s3: #1c2333;
-    --border: rgba(48,70,120,0.6);
-    --border2: rgba(48,70,120,0.3);
-    --accent: #58a6ff;
-    --accent2: #3fb950;
-    --gold: #e3b341;
-    --red: #f85149;
-    --text: #c9d1d9;
-    --text-dim: #8b949e;
-    --text-muted: #30363d;
-    --green: #3fb950;
-  }
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-    min-height: 100vh;
-  }
-
-  /* Noise texture overlay */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 1000;
-    opacity: 0.5;
-  }
-
-  /* Top glow */
-  .glow-top {
-    position: fixed;
-    top: -200px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 800px;
-    height: 400px;
-    background: radial-gradient(ellipse, rgba(88,166,255,0.07) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .container {
-    position: relative;
-    z-index: 1;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
-  }
-
-  /* ── HEADER ── */
-  header {
-    border-bottom: 1px solid var(--border);
-    background: rgba(7,9,15,0.95);
-    backdrop-filter: blur(12px);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-
-  .header-inner {
-    height: 58px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-  }
-
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .brand-icon {
-    width: 32px;
-    height: 32px;
-    background: linear-gradient(135deg, #1f6feb, #388bfd);
-    border-radius: 8px;
-    display: grid;
-    place-items: center;
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    font-weight: 500;
-    color: #fff;
-    letter-spacing: -0.5px;
-    flex-shrink: 0;
-  }
-
-  .brand-name {
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: -0.3px;
-    color: #e6edf3;
-  }
-
-  .brand-name span { color: var(--accent); }
-
-  .header-meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
-
-  .badge-syariah {
-    background: rgba(227,179,65,0.1);
-    border: 1px solid rgba(227,179,65,0.35);
-    color: var(--gold);
-  }
-
-  .badge-dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: currentColor;
-    animation: pulse-dot 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse-dot {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-
-  .clock {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
-    letter-spacing: 0.5px;
-  }
-
-  /* ── INDEX SELECTOR ── */
-  .index-bar {
-    padding: 20px 0 0;
-  }
-
-  .index-label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 12px;
-  }
-
-  .index-cards {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-
-  .index-card {
-    flex: 1;
-    min-width: 200px;
-    background: var(--s1);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 20px;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-    overflow: hidden;
-    user-select: none;
-  }
-
-  .index-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, transparent 60%, rgba(88,166,255,0.05));
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-
-  .index-card:hover::before { opacity: 1; }
-  .index-card:hover { border-color: rgba(88,166,255,0.5); }
-
-  .index-card.active {
-    border-color: var(--accent);
-    background: rgba(88,166,255,0.06);
-  }
-
-  .index-card.active::before { opacity: 1; }
-
-  .ic-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-  }
-
-  .ic-name {
-    font-family: 'DM Mono', monospace;
-    font-size: 16px;
-    font-weight: 500;
-    color: #e6edf3;
-  }
-
-  .ic-count {
-    background: var(--s3);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 2px 8px;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
-  }
-
-  .ic-active .ic-count {
-    border-color: rgba(88,166,255,0.4);
-    color: var(--accent);
-  }
-
-  .ic-desc {
-    font-size: 12px;
-    color: var(--text-dim);
-    line-height: 1.4;
-  }
-
-  .ic-check {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--accent);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    color: #000;
-    font-weight: 700;
-  }
-
-  .index-card.active .ic-check { display: flex; }
-
-  /* ── SCAN BUTTON ── */
-  .scan-bar {
-    padding: 16px 0 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .btn-scan {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 11px 28px;
-    background: var(--accent);
-    color: #000;
-    border: none;
-    border-radius: 10px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    flex-shrink: 0;
-  }
-
-  .btn-scan:hover:not(:disabled) {
-    background: #79b8ff;
-    box-shadow: 0 0 20px rgba(88,166,255,0.35);
-    transform: translateY(-1px);
-  }
-
-  .btn-scan:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-  .btn-reset {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 11px 18px;
-    background: var(--s1);
-    color: var(--text-dim);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-reset:hover { border-color: rgba(88,166,255,0.5); color: var(--accent); }
-
-  .scan-note {
-    font-size: 12px;
-    color: var(--text-dim);
-    font-family: 'DM Mono', monospace;
-    margin-left: auto;
-    text-align: right;
-    line-height: 1.5;
-  }
-
-  /* ── PROGRESS ── */
-  .progress-wrap {
-    background: var(--s1);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 18px 20px;
-    margin-bottom: 20px;
-    display: none;
-  }
-
-  .progress-wrap.show { display: block; }
-
-  .progress-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-  }
-
-  .progress-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .spinner {
-    width: 14px;
-    height: 14px;
-    border: 2px solid rgba(88,166,255,0.2);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    flex-shrink: 0;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .progress-pct {
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    color: var(--accent);
-  }
-
-  .bar-track {
-    height: 3px;
-    background: var(--s3);
-    border-radius: 2px;
-    overflow: hidden;
-    margin-bottom: 10px;
-  }
-
-  .bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #388bfd, #58a6ff);
-    border-radius: 2px;
-    width: 0%;
-    transition: width 0.4s ease;
-  }
-
-  .progress-log {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
-    max-height: 56px;
-    overflow-y: auto;
-    line-height: 1.9;
-  }
-
-  .log-pass { color: var(--green); }
-  .log-fail { color: var(--text-muted); }
-  .log-err { color: var(--red); }
-
-  /* ── STATS ── */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 20px;
-    display: none;
-  }
-
-  .stats-grid.show { display: grid; }
-
-  .stat-box {
-    background: var(--s1);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-  }
-
-  .stat-num {
-    font-family: 'DM Mono', monospace;
-    font-size: 26px;
-    font-weight: 500;
-    line-height: 1;
-    margin-bottom: 4px;
-  }
-
-  .stat-lbl {
-    font-size: 11px;
-    color: var(--text-dim);
-    letter-spacing: 0.3px;
-  }
-
-  /* ── RESULTS ── */
-  .results-section { margin-bottom: 60px; display: none; }
-  .results-section.show { display: block; }
-
-  .results-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-  }
-
-  .results-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-dim);
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-  }
-
-  .results-title .count-badge {
-    background: rgba(63,185,80,0.15);
-    border: 1px solid rgba(63,185,80,0.3);
-    color: var(--green);
-    padding: 2px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 700;
-    font-family: 'DM Mono', monospace;
-  }
-
-  .update-note {
-    font-size: 11px;
-    color: var(--text-muted);
-    font-family: 'DM Mono', monospace;
-  }
-
-  /* Empty pass state */
-  .no-results {
-    background: var(--s1);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 48px 20px;
-    text-align: center;
-    display: none;
-  }
-
-  .no-results.show { display: block; }
-  .no-results-icon { font-size: 36px; opacity: 0.3; margin-bottom: 12px; }
-  .no-results-title { font-size: 15px; font-weight: 600; color: #e6edf3; margin-bottom: 6px; }
-  .no-results-desc { font-size: 12px; color: var(--text-dim); }
-
-  /* Card grid for results */
-  .cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 12px;
-  }
-
-  .stock-card {
-    background: var(--s1);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 18px;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .stock-card::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, var(--green), #26a641);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.3s;
-  }
-
-  .stock-card:hover { border-color: rgba(63,185,80,0.4); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-  .stock-card:hover::after { transform: scaleX(1); }
-
-  .card-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 14px;
-  }
-
-  .card-ticker {
-    font-family: 'DM Mono', monospace;
-    font-size: 20px;
-    font-weight: 500;
-    color: #e6edf3;
-    line-height: 1;
-  }
-
-  .card-index-tag {
-    font-size: 10px;
-    color: var(--text-dim);
-    margin-top: 4px;
-    font-family: 'DM Mono', monospace;
-  }
-
-  .card-price-block { text-align: right; }
-
-  .card-price {
-    font-family: 'DM Mono', monospace;
-    font-size: 18px;
-    font-weight: 500;
-    color: #e6edf3;
-    line-height: 1;
-  }
-
-  .card-change {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    font-weight: 500;
-    margin-top: 3px;
-  }
-
-  .card-change.up { color: var(--green); }
-  .card-change.dn { color: var(--red); }
-
-  .card-metrics {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 14px;
-  }
-
-  .metric {
-    background: var(--s2);
-    border-radius: 8px;
-    padding: 10px 12px;
-  }
-
-  .metric-label {
-    font-size: 10px;
-    color: var(--text-dim);
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-
-  .metric-value {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    font-weight: 500;
-    color: #e6edf3;
-  }
-
-  .metric-value.ok { color: var(--green); }
-  .metric-value.warn { color: var(--gold); }
-
-  .card-criteria {
-    display: flex;
-    gap: 6px;
-  }
-
-  .crit {
-    flex: 1;
-    background: rgba(63,185,80,0.1);
-    border: 1px solid rgba(63,185,80,0.25);
-    border-radius: 6px;
-    padding: 6px 4px;
-    text-align: center;
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    font-weight: 500;
-    color: var(--green);
-    line-height: 1.2;
-  }
-
-  .crit span { display: block; font-size: 9px; color: rgba(63,185,80,0.6); margin-top: 2px; }
-
-  /* ── MODAL (chart) ── */
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.8);
-    z-index: 200;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(6px);
-    padding: 20px;
-  }
-
-  .modal-backdrop.open { display: flex; }
-
-  .modal {
-    background: var(--s1);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    width: 100%;
-    max-width: 880px;
-    max-height: 90vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    animation: modal-in 0.2s ease;
-  }
-
-  @keyframes modal-in {
-    from { opacity: 0; transform: scale(0.96) translateY(10px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-  }
-
-  .modal-head {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-  }
-
-  .modal-info { display: flex; align-items: center; gap: 14px; }
-
-  .modal-ticker {
-    font-family: 'DM Mono', monospace;
-    font-size: 20px;
-    font-weight: 500;
-    color: #e6edf3;
-  }
-
-  .modal-price {
-    font-family: 'DM Mono', monospace;
-    font-size: 14px;
-    color: var(--text-dim);
-  }
-
-  .modal-change { font-family: 'DM Mono', monospace; font-size: 14px; }
-  .modal-change.up { color: var(--green); }
-  .modal-change.dn { color: var(--red); }
-
-  .close-btn {
-    width: 30px; height: 30px;
-    background: var(--s2);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-    color: var(--text-dim);
-    font-size: 14px;
-    transition: all 0.2s;
-    flex-shrink: 0;
-  }
-
-  .close-btn:hover { color: #e6edf3; border-color: rgba(88,166,255,0.4); }
-
-  .modal-body { padding: 16px 20px 20px; overflow-y: auto; flex: 1; }
-
-  .tf-row {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 12px;
-  }
-
-  .tf-btn {
-    padding: 6px 16px;
-    border: 1px solid var(--border);
-    background: none;
-    border-radius: 7px;
-    color: var(--text-dim);
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .tf-btn.active { background: rgba(88,166,255,0.12); border-color: var(--accent); color: var(--accent); }
-  .tf-btn:hover:not(.active) { border-color: rgba(88,166,255,0.4); color: var(--text); }
-
-  .chart-wrap {
-    width: 100%;
-    height: 440px;
-    border-radius: 10px;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    background: #000;
-  }
-
-  .chart-wrap iframe { width: 100%; height: 100%; border: none; }
-
-  .modal-foot {
-    margin-top: 10px;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--text-muted);
-    text-align: center;
-  }
-
-  .modal-foot a { color: var(--accent); text-decoration: none; }
-  .modal-foot a:hover { text-decoration: underline; }
-
-  /* ── EMPTY STATE ── */
-  .empty-state {
-    text-align: center;
-    padding: 80px 20px;
-  }
-
-  .empty-icon { font-size: 52px; margin-bottom: 16px; filter: grayscale(1) opacity(0.3); }
-  .empty-title { font-size: 18px; font-weight: 700; color: #e6edf3; margin-bottom: 8px; }
-  .empty-sub { font-size: 13px; color: var(--text-dim); max-width: 400px; margin: 0 auto; line-height: 1.7; }
-
-  /* ── SEPARATOR ── */
-  .divider {
-    height: 1px;
-    background: var(--border2);
-    margin: 20px 0;
-  }
-
-  /* ── SCROLL ── */
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--s3); border-radius: 3px; }
-
-  /* ── RESPONSIVE ── */
-  @media (max-width: 700px) {
-    .index-cards { flex-direction: column; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    .cards-grid { grid-template-columns: 1fr; }
-    .scan-note { display: none; }
-  }
-
-  /* ── FOOTER NOTE ── */
-  .footer-note {
-    border-top: 1px solid var(--border2);
-    padding: 16px 0;
-    font-size: 11px;
-    color: var(--text-muted);
-    font-family: 'DM Mono', monospace;
-    text-align: center;
-    line-height: 1.8;
-  }
-
-  .footer-note span { color: var(--text-dim); }
+/* ============================================================
+   TOKENS
+   ============================================================ */
+:root {
+  --bg:         #f5f7fc;
+  --bg2:        #ffffff;
+  --surface:    #ffffff;
+  --surface2:   #f0f3fb;
+  --surface3:   #e7ecf8;
+  --border:     #dde3f2;
+  --border2:    #eaeef9;
+
+  /* Brand accent per mode */
+  --bsjp:       #2563eb;
+  --bsjp-dim:   #dbeafe;
+  --bsjp-mid:   #93c5fd;
+  --swing:      #7c3aed;
+  --swing-dim:  #ede9fe;
+  --swing-mid:  #c4b5fd;
+
+  --accent:     #2563eb;   /* active mode accent, swapped by JS */
+  --accent-dim: #dbeafe;
+
+  --green:      #16a34a;
+  --green-dim:  #dcfce7;
+  --red:        #dc2626;
+  --red-dim:    #fee2e2;
+  --gold:       #b45309;
+  --gold-dim:   #fef3c7;
+  --orange:     #ea580c;
+
+  --text:       #0f172a;
+  --text-2:     #334155;
+  --text-3:     #64748b;
+  --text-4:     #cbd5e1;
+
+  --mono:       'JetBrains Mono', monospace;
+  --sans:       'Plus Jakarta Sans', sans-serif;
+  --radius:     10px;
+  --radius-lg:  16px;
+  --radius-xl:  22px;
+  --shadow-s:   0 1px 4px rgba(15,23,42,0.07);
+  --shadow:     0 4px 18px rgba(15,23,42,0.09);
+  --shadow-lg:  0 12px 48px rgba(15,23,42,0.15);
+}
+
+/* ============================================================
+   RESET + BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 14px; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(var(--border2) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border2) 1px, transparent 1px);
+  background-size: 36px 36px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.7;
+}
+
+.wrap { position:relative; z-index:1; max-width:1300px; margin:0 auto; padding:0 24px; }
+
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-track { background: var(--surface2); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius:4px; }
+
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
+.mono { font-family: var(--mono); }
+.label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1.3px; text-transform: uppercase;
+  color: var(--text-3);
+}
+.up   { color: var(--green) !important; }
+.down { color: var(--red)   !important; }
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.header {
+  border-bottom: 1px solid var(--border);
+  background: rgba(245,247,252,0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  position: sticky; top: 0; z-index: 300;
+}
+
+.header-inner {
+  height: 58px;
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 20px;
+}
+
+.logo {
+  display: flex; align-items: center; gap: 10px;
+  text-decoration: none; flex-shrink: 0;
+}
+
+.logo-mark {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--bsjp) 0%, var(--swing) 100%);
+  border-radius: 10px;
+  display: grid; place-items: center;
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  color: #fff; letter-spacing: -0.3px; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+}
+
+.logo-title { font-size: 15px; font-weight: 800; color: var(--text); letter-spacing: -0.4px; line-height:1.1; }
+.logo-sub   { font-size: 10px; color: var(--text-3); font-weight: 500; }
+
+.hdr-right { display:flex; align-items:center; gap:10px; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+}
+.pill-syariah { background:var(--gold-dim); border:1px solid rgba(180,83,9,.25); color:var(--gold); }
+.pulse { width:5px; height:5px; border-radius:50%; background:currentColor; animation:blink 2s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+.clock { font-family:var(--mono); font-size:11px; color:var(--text-3); letter-spacing:.5px; }
+
+/* ============================================================
+   APP-LEVEL TABS (BSJP vs Swing)
+   ============================================================ */
+.app-tabs {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  position: sticky; top: 58px; z-index: 200;
+}
+
+.app-tabs-inner {
+  display: flex; gap: 0;
+  padding: 0 0;
+}
+
+.app-tab {
+  position: relative;
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 28px;
+  background: none; border: none;
+  font-family: var(--sans); font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .18s; color: var(--text-3);
+  border-bottom: 3px solid transparent; margin-bottom: -1px;
+  letter-spacing: -0.2px;
+}
+
+.app-tab:hover { color: var(--text-2); }
+
+.app-tab.active-bsjp  { color: var(--bsjp);  border-bottom-color: var(--bsjp); }
+.app-tab.active-swing { color: var(--swing); border-bottom-color: var(--swing); }
+
+.app-tab-icon {
+  width: 26px; height: 26px; border-radius: 7px;
+  display: grid; place-items: center;
+  font-size: 12px; transition: all .18s;
+}
+.tab-bsjp-icon  { background: var(--bsjp-dim); }
+.tab-swing-icon { background: var(--swing-dim); }
+.app-tab.active-bsjp  .tab-bsjp-icon  { background: var(--bsjp); }
+.app-tab.active-swing .tab-swing-icon { background: var(--swing); }
+
+.app-tab-badge {
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  padding: 1px 7px; border-radius: 10px;
+  background: var(--surface2); color: var(--text-3);
+  transition: all .18s;
+}
+.app-tab.active-bsjp  .app-tab-badge { background:var(--bsjp-dim);  color:var(--bsjp); }
+.app-tab.active-swing .app-tab-badge { background:var(--swing-dim); color:var(--swing); }
+
+.app-tab-desc {
+  font-size: 10px; font-weight: 400; color:inherit; opacity:.65; margin-left: 2px;
+}
+
+/* ============================================================
+   PAGE BODY
+   ============================================================ */
+.page { padding: 28px 0 70px; }
+
+.app-panel { display: none; }
+.app-panel.active { display: block; }
+
+/* Section head */
+.sec-head { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.sec-head h2 { font-size:11px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:var(--text-3); white-space:nowrap; }
+.sec-head::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* ============================================================
+   INDEX SELECTOR CARDS
+   ============================================================ */
+.index-cards {
+  display: grid; grid-template-columns: repeat(3,1fr); gap:10px;
+  margin-bottom: 18px;
+}
+
+.idx-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px 18px;
+  cursor: pointer; transition: all .18s; position:relative; overflow:hidden; user-select:none;
+  box-shadow: var(--shadow-s);
+}
+.idx-card::before {
+  content:''; position:absolute; inset:0; border-radius:var(--radius-lg);
+  background: linear-gradient(135deg, var(--accent-dim), transparent);
+  opacity:0; transition:opacity .2s;
+}
+.idx-card:hover { border-color:var(--accent); box-shadow: var(--shadow); transform: translateY(-1px); }
+.idx-card:hover::before { opacity:.5; }
+.idx-card.active { border-color:var(--accent); background:linear-gradient(145deg,rgba(255,255,255,.5),var(--accent-dim)); box-shadow:var(--shadow); }
+.idx-card.active::before { opacity:1; }
+
+.idx-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; position:relative; z-index:1; }
+.idx-name { font-family:var(--mono); font-size:20px; font-weight:600; color:var(--text); }
+.idx-card.active .idx-name { color:var(--accent); }
+.idx-count { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:2px 8px; font-family:var(--mono); font-size:10px; color:var(--text-3); }
+.idx-card.active .idx-count { background:var(--accent-dim); border-color:rgba(37,99,235,.25); color:var(--accent); }
+.idx-desc { font-size:11px; color:var(--text-3); line-height:1.5; position:relative; z-index:1; }
+.idx-period { font-size:10px; font-weight:600; color:var(--accent); margin-top:3px; position:relative; z-index:1; }
+.idx-check { position:absolute; top:10px; right:10px; width:16px; height:16px; border-radius:50%; background:var(--accent); display:none; align-items:center; justify-content:center; font-size:9px; color:#fff; font-weight:700; }
+.idx-card.active .idx-check { display:flex; }
+
+/* ============================================================
+   CRITERIA CHIPS
+   ============================================================ */
+.crit-row { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:18px; }
+.crit-chip {
+  display:flex; align-items:center; gap:6px;
+  background:var(--surface); border:1px solid var(--border); border-radius:8px;
+  padding:5px 11px; font-size:11px; color:var(--text-2);
+  box-shadow:var(--shadow-s); transition:all .15s; white-space:nowrap;
+}
+.crit-chip:hover { border-color:var(--accent); color:var(--text); }
+.crit-num {
+  padding:1px 6px; border-radius:4px;
+  font-family:var(--mono); font-size:9px; font-weight:700;
+  letter-spacing:.3px;
+}
+.crit-num-bsjp  { background:var(--bsjp-dim);  color:var(--bsjp); }
+.crit-num-swing { background:var(--swing-dim); color:var(--swing); }
+
+/* ============================================================
+   SCAN CONTROLS
+   ============================================================ */
+.scan-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+
+.custom-wrap {
+  flex:1; min-width:260px;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 14px; transition:border-color .15s; box-shadow:var(--shadow-s);
+}
+.custom-wrap:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); }
+.custom-wrap .label { display:block; margin-bottom:5px; }
+.custom-wrap textarea {
+  width:100%; background:none; border:none; outline:none;
+  color:var(--text); font-family:var(--mono); font-size:12px;
+  resize:none; height:44px; line-height:1.5;
+}
+.custom-wrap textarea::placeholder { color:var(--text-4); }
+
+.btn-col { display:flex; flex-direction:column; gap:7px; }
+
+.btn {
+  display:inline-flex; align-items:center; gap:7px;
+  border:none; border-radius:var(--radius); font-family:var(--sans);
+  font-weight:700; font-size:13px; cursor:pointer; transition:all .15s;
+  white-space:nowrap; padding:10px 22px; letter-spacing:-.1px;
+}
+
+.btn-bsjp  { background:var(--bsjp);  color:#fff; box-shadow:0 2px 10px rgba(37,99,235,.3); }
+.btn-bsjp:hover:not(:disabled)  { background:#1d4ed8; transform:translateY(-1px); box-shadow:0 4px 16px rgba(37,99,235,.4); }
+.btn-swing { background:var(--swing); color:#fff; box-shadow:0 2px 10px rgba(124,58,237,.3); }
+.btn-swing:hover:not(:disabled) { background:#6d28d9; transform:translateY(-1px); box-shadow:0 4px 16px rgba(124,58,237,.4); }
+.btn:disabled { opacity:.45; cursor:not-allowed; transform:none !important; }
+
+.btn-ghost {
+  background:var(--surface); color:var(--text-3);
+  border:1px solid var(--border); box-shadow:var(--shadow-s);
+}
+.btn-ghost:hover { border-color:var(--accent); color:var(--accent); }
+
+.scan-meta { margin-left:auto; text-align:right; font-size:11px; color:var(--text-3); font-family:var(--mono); line-height:1.9; padding-top:4px; }
+
+/* ============================================================
+   PROGRESS BOX
+   ============================================================ */
+.progress-box {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:16px 20px; margin-bottom:16px; display:none; box-shadow:var(--shadow-s);
+}
+.progress-box.show { display:block; }
+.prog-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.prog-status { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--text); }
+.spinner { width:13px; height:13px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.prog-pct { font-family:var(--mono); font-size:11px; color:var(--accent); font-weight:600; }
+.track { height:3px; background:var(--surface2); border-radius:2px; overflow:hidden; margin-bottom:10px; }
+.fill { height:100%; background:linear-gradient(90deg,var(--accent),#34d399); border-radius:2px; width:0%; transition:width .3s ease; }
+.log-box { font-family:var(--mono); font-size:10px; color:var(--text-3); max-height:52px; overflow-y:auto; line-height:1.9; }
+.log-ok  { color:var(--green); }
+.log-no  { color:var(--text-4); }
+.log-err { color:var(--red); }
+.log-sys { color:var(--accent); }
+
+/* ============================================================
+   STATS ROW
+   ============================================================ */
+.stats-row { display:none; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
+.stats-row.show { display:grid; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow-s); }
+.stat-n { font-family:var(--mono); font-size:28px; font-weight:500; line-height:1; margin-bottom:5px; }
+.stat-l { font-size:11px; color:var(--text-3); font-weight:600; }
+
+/* ============================================================
+   RESULTS HEADER + GRID
+   ============================================================ */
+.res-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.pass-badge { display:inline-flex; align-items:center; gap:5px; border-radius:20px; padding:3px 10px; font-family:var(--mono); font-size:12px; font-weight:600; }
+.badge-bsjp  { background:var(--bsjp-dim);  border:1px solid rgba(37,99,235,.2);  color:var(--bsjp); }
+.badge-swing { background:var(--swing-dim); border:1px solid rgba(124,58,237,.2); color:var(--swing); }
+.scan-ts { font-size:11px; color:var(--text-3); font-family:var(--mono); }
+
+.cards-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(370px,1fr)); gap:12px; }
+
+/* ============================================================
+   STOCK CARD
+   ============================================================ */
+.scard {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:18px;
+  cursor:pointer; transition:all .18s; position:relative; overflow:hidden;
+  box-shadow:var(--shadow-s);
+}
+.scard::after { content:''; position:absolute; top:0; left:0; right:0; height:2.5px; background:var(--card-accent,var(--bsjp)); transform:scaleX(0); transform-origin:left; transition:transform .25s ease; border-radius:var(--radius-lg) var(--radius-lg) 0 0; }
+.scard:hover { transform:translateY(-2px); box-shadow:var(--shadow); border-color:transparent; }
+.scard:hover::after { transform:scaleX(1); }
+
+.scard-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:13px; }
+.scard-ticker { font-family:var(--mono); font-size:22px; font-weight:600; color:var(--text); letter-spacing:-0.5px; line-height:1; }
+.scard-tags { display:flex; align-items:center; gap:5px; margin-top:5px; flex-wrap:wrap; }
+.tag { font-size:9px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; padding:2px 7px; border-radius:5px; border:1px solid; }
+.tag-idx { color:var(--text-3); border-color:var(--border); background:var(--surface2); }
+.scard-right { text-align:right; }
+.scard-price { font-family:var(--mono); font-size:18px; font-weight:600; color:var(--text); line-height:1; }
+.scard-chg { font-family:var(--mono); font-size:12px; font-weight:600; margin-top:3px; }
+
+.scard-metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:10px; }
+.metric-box { background:var(--surface2); border-radius:7px; padding:8px; text-align:center; }
+.metric-box .label { margin-bottom:3px; display:block; }
+.metric-val { font-family:var(--mono); font-size:12px; font-weight:500; color:var(--text); }
+
+.scard-trade { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:12px; }
+.trade-box { border-radius:7px; padding:8px; text-align:center; border:1px solid; }
+.trade-box .label { margin-bottom:3px; display:block; }
+.trade-box .trade-val { font-family:var(--mono); font-size:11px; font-weight:700; }
+.tb-e { background:rgba(37,99,235,.05); border-color:rgba(37,99,235,.15); }
+.tb-tp { background:rgba(22,163,74,.06); border-color:rgba(22,163,74,.18); }
+.tb-sl { background:rgba(220,38,38,.05); border-color:rgba(220,38,38,.15); }
+.tb-e  .trade-val { color:var(--bsjp); }
+.tb-tp .trade-val { color:var(--green); }
+.tb-sl .trade-val { color:var(--red); }
+
+.scard-footer { display:flex; gap:5px; }
+.crit-pass { flex:1; border-radius:6px; padding:5px 4px; text-align:center; font-family:var(--mono); font-size:10px; font-weight:700; line-height:1.3; }
+.crit-pass span { display:block; font-size:9px; margin-top:1px; opacity:.55; font-weight:400; }
+.crit-bsjp  { background:var(--bsjp-dim);  color:var(--bsjp); }
+.crit-swing { background:var(--swing-dim); color:var(--swing); }
+
+/* Swing-specific card additions */
+.swing-signals { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px; }
+.sig-chip {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 9px; border-radius:6px; font-size:10px; font-weight:600;
+  border:1px solid;
+}
+.sig-ok  { background:var(--green-dim); border-color:rgba(22,163,74,.2); color:var(--green); }
+.sig-warn { background:var(--gold-dim); border-color:rgba(180,83,9,.2); color:var(--gold); }
+
+/* ============================================================
+   EMPTY + NO-PASS
+   ============================================================ */
+.empty { text-align:center; padding:80px 20px; }
+.empty-icon { font-size:52px; opacity:.18; margin-bottom:16px; }
+.empty-title { font-size:20px; font-weight:800; margin-bottom:8px; }
+.empty-sub { font-size:13px; color:var(--text-3); max-width:380px; margin:0 auto; line-height:1.8; }
+
+.no-pass { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:48px 20px; text-align:center; display:none; }
+.no-pass.show { display:block; }
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+.backdrop { position:fixed; inset:0; background:rgba(15,23,42,.5); z-index:500; display:none; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(6px); }
+.backdrop.open { display:flex; }
+
+.modal {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:var(--radius-xl); width:100%; max-width:980px; max-height:92vh;
+  overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:var(--shadow-lg);
+  animation:pop .2s cubic-bezier(.175,.885,.32,1.1);
+}
+@keyframes pop { from{opacity:0;transform:scale(.95) translateY(12px)} to{opacity:1;transform:scale(1) translateY(0)} }
+
+.modal-hd {
+  padding:16px 22px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  flex-shrink:0; background:var(--surface);
+}
+.modal-info { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.modal-ticker { font-family:var(--mono); font-size:22px; font-weight:600; color:var(--text); }
+.modal-price  { font-family:var(--mono); font-size:15px; color:var(--text-3); }
+.modal-chg    { font-family:var(--mono); font-size:14px; font-weight:700; }
+.modal-trend-badge { font-size:10px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; padding:3px 10px; border-radius:20px; border:1px solid; }
+.modal-mode-badge { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:3px 9px; border-radius:20px; }
+.close-btn { width:30px; height:30px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; cursor:pointer; display:grid; place-items:center; color:var(--text-3); font-size:14px; transition:all .15s; flex-shrink:0; }
+.close-btn:hover { border-color:var(--red); color:var(--red); }
+
+.modal-tabs { display:flex; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0; padding:0 22px; }
+.mtab { padding:13px 18px; background:none; border:none; border-bottom:2.5px solid transparent; color:var(--text-3); font-family:var(--sans); font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; margin-bottom:-1px; display:flex; align-items:center; gap:6px; letter-spacing:-.1px; }
+.mtab:hover { color:var(--text-2); }
+.mtab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+.modal-body { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+.tab-panel { flex:1; overflow-y:auto; padding:20px 22px; }
+.tab-panel.hidden { display:none; }
+
+/* ============================================================
+   CHART TAB
+   ============================================================ */
+.tf-row { display:flex; gap:6px; margin-bottom:12px; }
+.tf-btn { padding:6px 16px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text-3); font-family:var(--mono); font-size:11px; font-weight:600; cursor:pointer; transition:all .15s; }
+.tf-btn:hover { border-color:var(--accent); color:var(--text); }
+.tf-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
+.chart-frame { width:100%; height:460px; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border); background:#f8fafc; }
+.chart-frame iframe { width:100%; height:100%; border:none; }
+.chart-foot { margin-top:10px; font-size:11px; color:var(--text-3); text-align:center; font-family:var(--mono); }
+.chart-foot a { color:var(--accent); text-decoration:none; }
+.chart-foot a:hover { text-decoration:underline; }
+
+/* ============================================================
+   TECH TAB
+   ============================================================ */
+.tech-tf-tabs { display:flex; gap:6px; margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+.tftab { padding:6px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:7px; color:var(--text-3); font-family:var(--mono); font-size:11px; font-weight:600; cursor:pointer; transition:all .15s; }
+.tftab:hover { border-color:var(--swing); color:var(--text); }
+.tftab.active { background:var(--swing-dim); border-color:var(--swing); color:var(--swing); }
+.tech-loading { text-align:center; padding:40px; color:var(--text-3); font-size:13px; display:flex; align-items:center; justify-content:center; gap:10px; }
+.tech-data {}
+.tech-group-title { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-4); padding:14px 0 8px; border-top:1px solid var(--border2); margin-top:4px; }
+.tech-group-title:first-child { border-top:none; padding-top:0; margin-top:0; }
+.tech-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border2); }
+.tech-row:last-child { border-bottom:none; }
+.tech-name { font-size:13px; color:var(--text-2); font-weight:500; flex:1; }
+.tech-right { display:flex; align-items:center; gap:10px; text-align:right; }
+.tech-val { font-family:var(--mono); font-size:13px; font-weight:500; color:var(--text); }
+.tech-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:5px; white-space:nowrap; }
+.badge-up   { background:var(--green-dim); color:var(--green); }
+.badge-down { background:var(--red-dim);   color:var(--red); }
+.badge-neu  { background:var(--surface2);  color:var(--text-3); }
+.badge-ob   { background:rgba(220,38,38,.12); color:var(--red); }
+.badge-os   { background:var(--bsjp-dim);  color:var(--bsjp); }
+.rsi-row { flex-direction:column; align-items:flex-start; gap:8px; }
+.rsi-gauge { width:100%; height:8px; border-radius:4px; background:linear-gradient(90deg,#2563eb 0%,#2563eb 28%,#16a34a 28%,#16a34a 42%,#d97706 42%,#d97706 70%,#dc2626 70%); position:relative; margin-top:4px; }
+.rsi-needle { position:absolute; top:-4px; width:3px; height:16px; background:#0f172a; border-radius:2px; transform:translateX(-50%); box-shadow:0 0 3px rgba(0,0,0,.15); transition:left .3s ease; }
+.rsi-labels { display:flex; justify-content:space-between; font-family:var(--mono); font-size:9px; color:var(--text-3); margin-top:3px; }
+.sr-levels { display:flex; flex-direction:column; gap:5px; margin-top:8px; }
+.sr-row { display:flex; align-items:center; gap:10px; padding:9px 14px; border-radius:8px; border:1px solid; font-size:12px; }
+.sr-r { background:rgba(220,38,38,.04);  border-color:rgba(220,38,38,.15); }
+.sr-c { background:rgba(37,99,235,.05);  border-color:rgba(37,99,235,.2); }
+.sr-s { background:rgba(22,163,74,.04);  border-color:rgba(22,163,74,.15); }
+.sr-tag { font-family:var(--mono); font-size:10px; font-weight:700; min-width:32px; }
+.sr-name { flex:1; color:var(--text-2); }
+.sr-val { font-family:var(--mono); font-size:13px; font-weight:600; color:var(--text); }
+.sr-pct { font-family:var(--mono); font-size:11px; min-width:54px; text-align:right; }
+.tf-note { margin-top:14px; padding:10px 14px; background:var(--surface2); border-radius:8px; font-size:11px; color:var(--text-3); font-family:var(--mono); border:1px solid var(--border2); }
+
+/* ============================================================
+   TRADE TAB
+   ============================================================ */
+.trade-panel { display:flex; flex-direction:column; gap:16px; }
+.rr-box { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px 20px; }
+.rr-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.rr-label { font-size:13px; font-weight:700; color:var(--text); }
+.rr-val { font-family:var(--mono); font-size:20px; font-weight:600; color:var(--accent); }
+.rr-slider { width:100%; height:6px; -webkit-appearance:none; appearance:none; border-radius:3px; outline:none; cursor:pointer; background:linear-gradient(90deg,var(--green) 0%,var(--accent) 50%,var(--swing) 100%); }
+.rr-slider::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:#fff; border:3px solid var(--accent); cursor:pointer; box-shadow:0 2px 8px rgba(37,99,235,.3); transition:all .15s; }
+.rr-slider::-webkit-slider-thumb:hover { transform:scale(1.1); }
+.rr-ticks { display:flex; justify-content:space-between; margin-top:8px; font-family:var(--mono); font-size:10px; color:var(--text-3); }
+.trade-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.tc { border-radius:var(--radius); padding:18px; text-align:center; border:1px solid; }
+.tc-e  { background:rgba(37,99,235,.05);  border-color:rgba(37,99,235,.2); }
+.tc-tp { background:rgba(22,163,74,.06);  border-color:rgba(22,163,74,.25); }
+.tc-sl { background:rgba(220,38,38,.05);  border-color:rgba(220,38,38,.2); }
+.tc-icon { font-size:18px; margin-bottom:8px; }
+.tc-lbl { font-size:10px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--text-3); margin-bottom:10px; }
+.tc-price { font-family:var(--mono); font-size:17px; font-weight:700; margin-bottom:4px; }
+.tc-sub { font-family:var(--mono); font-size:11px; color:var(--text-3); }
+.tc-e  .tc-price { color:var(--accent); }
+.tc-tp .tc-price { color:var(--green); }
+.tc-sl .tc-price { color:var(--red); }
+.rr-visual { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:16px 20px; }
+.rr-bar-wrap { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.rr-bar-lbl { font-family:var(--mono); font-size:11px; font-weight:700; min-width:24px; }
+.rr-bar { flex:1; height:16px; background:var(--border); border-radius:8px; overflow:hidden; display:flex; }
+.rr-bar-sl { height:100%; background:linear-gradient(90deg,var(--red-dim),var(--red)); opacity:.8; transition:width .3s ease; border-radius:8px 0 0 8px; }
+.rr-bar-tp { height:100%; background:linear-gradient(90deg,var(--green),rgba(22,163,74,.4)); opacity:.8; transition:width .3s ease; border-radius:0 8px 8px 0; }
+.rr-bar-sub { display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--text-3); }
+.sr-ref-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.sr-ref-box { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:12px; text-align:center; }
+.sr-ref-box .label { display:block; margin-bottom:5px; }
+.sr-ref-box .val { font-family:var(--mono); font-size:13px; font-weight:600; color:var(--text); }
+.trade-disc { background:var(--gold-dim); border:1px solid rgba(180,83,9,.15); border-radius:8px; padding:12px 16px; font-size:11px; color:var(--gold); line-height:1.6; }
+
+/* ============================================================
+   SWING-SPECIFIC: SETUP ANALYSIS BOX in modal
+   ============================================================ */
+.swing-setup-box {
+  background: linear-gradient(135deg, var(--swing-dim), rgba(237,233,254,.3));
+  border: 1px solid rgba(124,58,237,.2);
+  border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 16px;
+}
+.ssb-title { font-size:11px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--swing); margin-bottom:12px; }
+.ssb-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.ssb-item { background:rgba(255,255,255,.7); border:1px solid rgba(124,58,237,.1); border-radius:8px; padding:10px 12px; }
+.ssb-item .label { display:block; margin-bottom:4px; }
+.ssb-val { font-family:var(--mono); font-size:13px; font-weight:600; color:var(--text); }
+.ssb-sub { font-size:10px; color:var(--text-3); margin-top:2px; }
+
+.signal-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+.sig { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:7px; font-size:11px; font-weight:700; border:1px solid; }
+.sig-green  { background:var(--green-dim); border-color:rgba(22,163,74,.2); color:var(--green); }
+.sig-orange { background:var(--gold-dim);  border-color:rgba(180,83,9,.2);  color:var(--gold); }
+.sig-red    { background:var(--red-dim);   border-color:rgba(220,38,38,.2); color:var(--red); }
+.sig-blue   { background:var(--bsjp-dim);  border-color:rgba(37,99,235,.2); color:var(--bsjp); }
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.footer { border-top:1px solid var(--border2); padding:18px 0; font-size:11px; color:var(--text-4); font-family:var(--mono); text-align:center; line-height:2; }
+.footer span { color:var(--text-3); }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+  .index-cards    { grid-template-columns:1fr; }
+  .stats-row      { grid-template-columns:repeat(2,1fr); }
+  .cards-grid     { grid-template-columns:1fr; }
+  .trade-3        { grid-template-columns:1fr; }
+  .sr-ref-grid    { grid-template-columns:repeat(2,1fr); }
+  .scard-metrics  { grid-template-columns:repeat(2,1fr); }
+  .ssb-grid       { grid-template-columns:1fr; }
+  .scan-meta      { display:none; }
+  .app-tab-desc   { display:none; }
+  .app-tab        { padding:14px 16px; }
+}
 </style>
 </head>
 <body>
 
-<div class="glow-top"></div>
-
-<header>
-  <div class="container">
+<!-- ============================================================
+     HEADER
+     ============================================================ -->
+<div class="header">
+  <div class="wrap">
     <div class="header-inner">
-      <div class="brand">
-        <div class="brand-icon">BSJP</div>
-        <div class="brand-name">Auto<span>Scanner</span></div>
-      </div>
-      <div class="header-meta">
-        <div class="badge badge-syariah">
-          <div class="badge-dot"></div>
-          IDX Syariah
+      <a class="logo" href="#">
+        <div class="logo-mark">IDX</div>
+        <div>
+          <div class="logo-title">Syariah Scanner</div>
+          <div class="logo-sub">BSJP · Swing Trade · IDX</div>
         </div>
+      </a>
+      <div class="hdr-right">
+        <div class="pill pill-syariah"><div class="pulse"></div>IDX Syariah</div>
         <div class="clock" id="clock">--:--:-- WIB</div>
       </div>
     </div>
   </div>
-</header>
+</div>
 
-<div class="container">
-
-  <!-- INDEX SELECTOR -->
-  <div class="index-bar">
-    <div class="index-label">Pilih Indeks</div>
-    <div class="index-cards">
-      <div class="index-card active" id="card-JII30" onclick="selectIndex('JII30')">
-        <div class="ic-top">
-          <div class="ic-name">JII30</div>
-          <div class="ic-count" id="cnt-JII30">30 saham</div>
-        </div>
-        <div class="ic-desc">Jakarta Islamic Index — 30 saham syariah paling likuid, top tier</div>
-        <div class="ic-check">✓</div>
-      </div>
-      <div class="index-card" id="card-JII70" onclick="selectIndex('JII70')">
-        <div class="ic-top">
-          <div class="ic-name">JII70</div>
-          <div class="ic-count" id="cnt-JII70">70 saham</div>
-        </div>
-        <div class="ic-desc">Jakarta Islamic Index 70 — 70 saham syariah terpilih, kapitalisasi besar</div>
-        <div class="ic-check">✓</div>
-      </div>
-      <div class="index-card" id="card-ISSI" onclick="selectIndex('ISSI')">
-        <div class="ic-top">
-          <div class="ic-name">ISSI</div>
-          <div class="ic-count" id="cnt-ISSI">~200 saham</div>
-        </div>
-        <div class="ic-desc">Indeks Saham Syariah Indonesia — seluruh saham syariah representatif di BEI</div>
-        <div class="ic-check">✓</div>
-      </div>
+<!-- ============================================================
+     APP-LEVEL TABS
+     ============================================================ -->
+<div class="app-tabs">
+  <div class="wrap">
+    <div class="app-tabs-inner">
+      <button class="app-tab active-bsjp" id="appTabBSJP" onclick="switchAppMode('bsjp')">
+        <div class="app-tab-icon tab-bsjp-icon">⚡</div>
+        BSJP Scanner
+        <span class="app-tab-desc">· Breakout Harian</span>
+        <span class="app-tab-badge" id="bsjpBadge">0</span>
+      </button>
+      <button class="app-tab" id="appTabSwing" onclick="switchAppMode('swing')">
+        <div class="app-tab-icon tab-swing-icon">🌊</div>
+        Swing Trade
+        <span class="app-tab-desc">· Retracement Setup</span>
+        <span class="app-tab-badge" id="swingBadge">0</span>
+      </button>
     </div>
-  </div>
-
-  <div class="divider"></div>
-
-  <!-- KRITERIA INFO -->
-  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
-    <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim);">
-      <span style="background:rgba(88,166,255,0.1); border:1px solid rgba(88,166,255,0.3); color:var(--accent); padding:3px 8px; border-radius:5px; font-family:'DM Mono',monospace; font-size:10px;">C1</span>
-      Harga ≥ 1.05× kemarin
-    </div>
-    <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim);">
-      <span style="background:rgba(88,166,255,0.1); border:1px solid rgba(88,166,255,0.3); color:var(--accent); padding:3px 8px; border-radius:5px; font-family:'DM Mono',monospace; font-size:10px;">C2</span>
-      Harga ≥ MA5
-    </div>
-    <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim);">
-      <span style="background:rgba(88,166,255,0.1); border:1px solid rgba(88,166,255,0.3); color:var(--accent); padding:3px 8px; border-radius:5px; font-family:'DM Mono',monospace; font-size:10px;">C3</span>
-      Volume ≥ 1.2× kemarin
-    </div>
-    <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim);">
-      <span style="background:rgba(88,166,255,0.1); border:1px solid rgba(88,166,255,0.3); color:var(--accent); padding:3px 8px; border-radius:5px; font-family:'DM Mono',monospace; font-size:10px;">C4</span>
-      Value &gt; Rp 1 Miliar
-    </div>
-  </div>
-
-  <!-- SCAN BAR -->
-  <div class="scan-bar">
-    <button class="btn-scan" id="scanBtn" onclick="startScan()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-      <span id="scanBtnTxt">Scan Sekarang</span>
-    </button>
-    <button class="btn-reset" onclick="resetAll()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-      Reset
-    </button>
-    <div class="scan-note" id="scanNote">Pilih indeks lalu klik Scan<br>Data dari Yahoo Finance via proxy</div>
-  </div>
-
-  <!-- CUSTOM TAMBAHAN -->
-  <div style="margin-bottom:16px;">
-    <div style="font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;display:flex;align-items:center;gap:8px;">
-      Ticker Tambahan
-      <span style="font-size:10px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted)">— opsional: tambahkan saham syariah di luar daftar indeks yang dipilih</span>
-    </div>
-    <div style="display:flex;gap:10px;align-items:flex-start;">
-      <textarea id="customInput" placeholder="Contoh: ARGO INDR BUKK&#10;Pisahkan dengan spasi atau enter"
-        style="flex:1;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:10px 14px;
-        color:var(--text);font-family:'DM Mono',monospace;font-size:12px;resize:none;height:58px;outline:none;
-        transition:border-color 0.2s;"
-        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
-      <div style="font-size:11px;color:var(--text-muted);padding-top:8px;line-height:1.8;font-family:'DM Mono',monospace;white-space:nowrap;">
-        Akan digabung<br>saat scan
-      </div>
-    </div>
-  </div>
-
-  <!-- PROGRESS -->
-  <div class="progress-wrap" id="progressWrap">
-    <div class="progress-top">
-      <div class="progress-status">
-        <div class="spinner" id="spinEl"></div>
-        <span id="progressLabel">Memulai scan...</span>
-      </div>
-      <div class="progress-pct" id="progressPct">0%</div>
-    </div>
-    <div class="bar-track">
-      <div class="bar-fill" id="barFill"></div>
-    </div>
-    <div class="progress-log" id="progressLog"></div>
-  </div>
-
-  <!-- STATS -->
-  <div class="stats-grid" id="statsGrid">
-    <div class="stat-box">
-      <div class="stat-num" id="stTotal" style="color:var(--accent)">0</div>
-      <div class="stat-lbl">Dipindai</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-num" id="stPass" style="color:var(--green)">0</div>
-      <div class="stat-lbl">Lulus BSJP</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-num" id="stFail" style="color:var(--text-dim)">0</div>
-      <div class="stat-lbl">Tidak Lulus</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-num" id="stTime" style="color:var(--gold)">--</div>
-      <div class="stat-lbl">Waktu Scan</div>
-    </div>
-  </div>
-
-  <!-- NO PASS RESULTS -->
-  <div class="no-results" id="noResults">
-    <div class="no-results-icon">🔍</div>
-    <div class="no-results-title">Tidak Ada Yang Lulus</div>
-    <div class="no-results-desc">Tidak ada saham yang memenuhi semua 4 kriteria BSJP hari ini. Coba scan indeks lain atau cek kembali besok.</div>
-  </div>
-
-  <!-- RESULTS -->
-  <div class="results-section" id="resultsSection">
-    <div class="results-header">
-      <div class="results-title">
-        Saham Lulus BSJP
-        <span class="count-badge" id="passCount">0</span>
-      </div>
-      <div class="update-note" id="scanTime">-</div>
-    </div>
-    <div class="cards-grid" id="cardsGrid"></div>
-  </div>
-
-  <!-- EMPTY STATE (initial) -->
-  <div class="empty-state" id="emptyState">
-    <div class="empty-icon">📡</div>
-    <div class="empty-title">Pilih Indeks & Scan</div>
-    <div class="empty-sub">Pilih indeks syariah di atas (JII30 / JII70 / ISSI) lalu klik tombol Scan. Daftar saham sudah tersimpan — tidak perlu input manual.</div>
-  </div>
-
-  <div class="footer-note">
-    Data harga dari <span>Yahoo Finance</span> · Chart dari <span>TradingView</span> · Daftar konstituen per <span>Nov 2024–Mei 2025 (BEI/OJK)</span><br>
-    Update daftar tiap Mei & Nov · Bukan saran investasi · DYOR
   </div>
 </div>
 
-<!-- CHART MODAL -->
-<div class="modal-backdrop" id="modalBg" onclick="closeModal(event)">
+<!-- ============================================================
+     MAIN
+     ============================================================ -->
+<div class="page">
+<div class="wrap">
+
+  <!-- ═══════════════════════════════════════════
+       BSJP PANEL
+       ═══════════════════════════════════════════ -->
+  <div class="app-panel active" id="panelBSJP">
+
+    <!-- Index selector -->
+    <div class="sec-head"><h2>Pilih Indeks</h2></div>
+    <div class="index-cards" id="bsjpIndexCards">
+      <div class="idx-card active" id="bsjp-card-JII30" onclick="bsjpSelectIdx('JII30')">
+        <div class="idx-top"><div class="idx-name">JII30</div><div class="idx-count" id="bsjp-cnt-JII30">30</div></div>
+        <div class="idx-desc">Jakarta Islamic Index — 30 saham syariah paling likuid &amp; berkapitalisasi besar</div>
+        <div class="idx-period">Des 2025 – Mei 2026</div>
+        <div class="idx-check">✓</div>
+      </div>
+      <div class="idx-card" id="bsjp-card-JII70" onclick="bsjpSelectIdx('JII70')">
+        <div class="idx-top"><div class="idx-name">JII70</div><div class="idx-count" id="bsjp-cnt-JII70">70</div></div>
+        <div class="idx-desc">Jakarta Islamic Index 70 — 70 saham syariah terpilih berdasarkan likuiditas</div>
+        <div class="idx-period">Des 2024 – Mei 2025</div>
+        <div class="idx-check">✓</div>
+      </div>
+      <div class="idx-card" id="bsjp-card-ISSI" onclick="bsjpSelectIdx('ISSI')">
+        <div class="idx-top"><div class="idx-name">ISSI</div><div class="idx-count" id="bsjp-cnt-ISSI">200+</div></div>
+        <div class="idx-desc">Indeks Saham Syariah Indonesia — seluruh saham syariah BEI (614 konstituen)</div>
+        <div class="idx-period">Des 2024 – Mei 2025</div>
+        <div class="idx-check">✓</div>
+      </div>
+    </div>
+
+    <!-- Criteria chips -->
+    <div class="crit-row">
+      <div class="crit-chip"><span class="crit-num crit-num-bsjp">C1</span> Harga ≥ 1.05× kemarin</div>
+      <div class="crit-chip"><span class="crit-num crit-num-bsjp">C2</span> Harga ≥ MA5</div>
+      <div class="crit-chip"><span class="crit-num crit-num-bsjp">C3</span> Volume ≥ 1.2× kemarin</div>
+      <div class="crit-chip"><span class="crit-num crit-num-bsjp">C4</span> Value transaksi &gt; Rp 1 Miliar</div>
+    </div>
+
+    <!-- Controls -->
+    <div class="scan-row">
+      <div class="custom-wrap">
+        <span class="label">Ticker Tambahan (opsional)</span>
+        <textarea id="bsjpCustom" placeholder="Contoh: ARGO INDR BUKK  —  pisah spasi/enter"></textarea>
+      </div>
+      <div class="btn-col">
+        <button class="btn btn-bsjp" id="bsjpScanBtn" onclick="startBSJPScan()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <span id="bsjpBtnTxt">Scan BSJP</span>
+        </button>
+        <button class="btn btn-ghost" onclick="resetBSJP()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          Reset
+        </button>
+      </div>
+      <div class="scan-meta" id="bsjpMeta">Pilih indeks &amp; klik Scan<br>Data: Yahoo Finance via proxy</div>
+    </div>
+
+    <div class="progress-box" id="bsjpProgress">
+      <div class="prog-top">
+        <div class="prog-status"><div class="spinner" id="bsjpSpinner"></div><span id="bsjpProgLbl">Memulai...</span></div>
+        <div class="prog-pct" id="bsjpProgPct">0%</div>
+      </div>
+      <div class="track"><div class="fill" id="bsjpFill"></div></div>
+      <div class="log-box" id="bsjpLog"></div>
+    </div>
+
+    <div class="stats-row" id="bsjpStats">
+      <div class="stat"><div class="stat-n" id="bsjpStTotal" style="color:var(--bsjp)">0</div><div class="stat-l">Total Dipindai</div></div>
+      <div class="stat"><div class="stat-n" id="bsjpStPass"  style="color:var(--green)">0</div><div class="stat-l">Lulus BSJP</div></div>
+      <div class="stat"><div class="stat-n" id="bsjpStFail"  style="color:var(--text-3)">0</div><div class="stat-l">Tidak Lulus</div></div>
+      <div class="stat"><div class="stat-n" id="bsjpStTime"  style="color:var(--gold)">—</div><div class="stat-l">Waktu Scan</div></div>
+    </div>
+
+    <div id="bsjpResults" style="display:none">
+      <div class="res-head">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="label">Hasil BSJP</span>
+          <span class="pass-badge badge-bsjp" id="bsjpPassCount">0 lulus</span>
+        </div>
+        <span class="scan-ts" id="bsjpTs">—</span>
+      </div>
+      <div class="cards-grid" id="bsjpGrid"></div>
+    </div>
+    <div class="no-pass" id="bsjpNoPass"><div class="empty-icon">🔍</div><div class="empty-title">Tidak ada yang lulus hari ini</div><div class="empty-sub">Tidak ada saham memenuhi semua 4 kriteria BSJP. Coba indeks lain.</div></div>
+    <div class="empty" id="bsjpEmpty"><div class="empty-icon">⚡</div><div class="empty-title">BSJP Scanner Siap</div><div class="empty-sub">Pilih indeks syariah, lalu klik <strong>Scan BSJP</strong>. Mencari saham breakout harian dengan volume konfirmasi.</div></div>
+
+  </div><!-- /panelBSJP -->
+
+  <!-- ═══════════════════════════════════════════
+       SWING TRADE PANEL
+       ═══════════════════════════════════════════ -->
+  <div class="app-panel" id="panelSwing">
+
+    <!-- Index selector -->
+    <div class="sec-head"><h2>Pilih Indeks</h2></div>
+    <div class="index-cards" id="swingIndexCards">
+      <div class="idx-card active" id="sw-card-JII30" onclick="swingSelectIdx('JII30')">
+        <div class="idx-top"><div class="idx-name">JII30</div><div class="idx-count" id="sw-cnt-JII30">30</div></div>
+        <div class="idx-desc">Jakarta Islamic Index — 30 saham syariah paling likuid &amp; berkapitalisasi besar</div>
+        <div class="idx-period">Des 2025 – Mei 2026</div>
+        <div class="idx-check">✓</div>
+      </div>
+      <div class="idx-card" id="sw-card-JII70" onclick="swingSelectIdx('JII70')">
+        <div class="idx-top"><div class="idx-name">JII70</div><div class="idx-count" id="sw-cnt-JII70">70</div></div>
+        <div class="idx-desc">Jakarta Islamic Index 70 — 70 saham syariah terpilih berdasarkan likuiditas</div>
+        <div class="idx-period">Des 2024 – Mei 2025</div>
+        <div class="idx-check">✓</div>
+      </div>
+      <div class="idx-card" id="sw-card-ISSI" onclick="swingSelectIdx('ISSI')">
+        <div class="idx-top"><div class="idx-name">ISSI</div><div class="idx-count" id="sw-cnt-ISSI">200+</div></div>
+        <div class="idx-desc">Indeks Saham Syariah Indonesia — seluruh saham syariah BEI (614 konstituen)</div>
+        <div class="idx-period">Des 2024 – Mei 2025</div>
+        <div class="idx-check">✓</div>
+      </div>
+    </div>
+
+    <!-- Criteria chips -->
+    <div class="crit-row">
+      <div class="crit-chip"><span class="crit-num crit-num-swing">S1</span> Harga &gt; 1.25× MA20 (1H)</div>
+      <div class="crit-chip"><span class="crit-num crit-num-swing">S2</span> Candle terakhir retracement (1H)</div>
+      <div class="crit-chip"><span class="crit-num crit-num-swing">S3</span> Uptrend aktif di timeframe 1 Hari</div>
+      <div class="crit-chip"><span class="crit-num crit-num-swing">S4</span> RSI14 &gt; 50 dan &lt; 65 (1H)</div>
+    </div>
+
+    <!-- Controls -->
+    <div class="scan-row">
+      <div class="custom-wrap">
+        <span class="label">Ticker Tambahan (opsional)</span>
+        <textarea id="swingCustom" placeholder="Contoh: ARGO INDR BUKK  —  pisah spasi/enter"></textarea>
+      </div>
+      <div class="btn-col">
+        <button class="btn btn-swing" id="swingScanBtn" onclick="startSwingScan()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <span id="swingBtnTxt">Scan Swing</span>
+        </button>
+        <button class="btn btn-ghost" onclick="resetSwing()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          Reset
+        </button>
+      </div>
+      <div class="scan-meta" id="swingMeta">Pilih indeks &amp; klik Scan<br>Membutuhkan data 1H &amp; 1D dari Yahoo</div>
+    </div>
+
+    <div class="progress-box" id="swingProgress">
+      <div class="prog-top">
+        <div class="prog-status"><div class="spinner" id="swingSpinner"></div><span id="swingProgLbl">Memulai...</span></div>
+        <div class="prog-pct" id="swingProgPct">0%</div>
+      </div>
+      <div class="track"><div class="fill" id="swingFill" style="background:linear-gradient(90deg,var(--swing),#c084fc)"></div></div>
+      <div class="log-box" id="swingLog"></div>
+    </div>
+
+    <div class="stats-row" id="swingStats">
+      <div class="stat"><div class="stat-n" id="swingStTotal" style="color:var(--swing)">0</div><div class="stat-l">Total Dipindai</div></div>
+      <div class="stat"><div class="stat-n" id="swingStPass"  style="color:var(--green)">0</div><div class="stat-l">Setup Ditemukan</div></div>
+      <div class="stat"><div class="stat-n" id="swingStFail"  style="color:var(--text-3)">0</div><div class="stat-l">Tidak Memenuhi</div></div>
+      <div class="stat"><div class="stat-n" id="swingStTime"  style="color:var(--gold)">—</div><div class="stat-l">Waktu Scan</div></div>
+    </div>
+
+    <div id="swingResults" style="display:none">
+      <div class="res-head">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="label">Setup Swing</span>
+          <span class="pass-badge badge-swing" id="swingPassCount">0 setup</span>
+        </div>
+        <span class="scan-ts" id="swingTs">—</span>
+      </div>
+      <div class="cards-grid" id="swingGrid"></div>
+    </div>
+    <div class="no-pass" id="swingNoPass"><div class="empty-icon">🌊</div><div class="empty-title">Belum ada setup swing hari ini</div><div class="empty-sub">Tidak ada saham memenuhi semua 4 kriteria swing trade. Pasar mungkin sedang dalam fase konsolidasi.</div></div>
+    <div class="empty" id="swingEmpty"><div class="empty-icon">🌊</div><div class="empty-title">Swing Trade Scanner Siap</div><div class="empty-sub">Scanner mencari saham dalam uptrend kuat yang sedang mengalami retracement — peluang entry swing dengan RSI ideal antara 50–65.</div></div>
+
+  </div><!-- /panelSwing -->
+
+  <div class="footer">
+    Data: <span>Yahoo Finance</span> · Chart: <span>TradingView</span> ·
+    JII30: <span>Des 2025–Mei 2026</span> · JII70 &amp; ISSI: <span>Des 2024–Mei 2025 (OJK DES II 2024)</span><br>
+    Bukan rekomendasi investasi · Selalu lakukan analisis mandiri (DYOR)
+  </div>
+
+</div><!-- /wrap -->
+</div><!-- /page -->
+
+<!-- ============================================================
+     MODAL
+     ============================================================ -->
+<div class="backdrop" id="backdrop" onclick="closeModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-head">
+    <div class="modal-hd">
       <div class="modal-info">
-        <div class="modal-ticker" id="mTicker">-</div>
-        <div class="modal-price" id="mPrice">-</div>
-        <div class="modal-change" id="mChange"></div>
+        <div class="modal-ticker" id="mTicker">—</div>
+        <div class="modal-price"  id="mPrice">—</div>
+        <div class="modal-chg"    id="mChange"></div>
+        <div class="modal-trend-badge" id="mTrend"></div>
+        <div class="modal-mode-badge"  id="mModeBadge"></div>
       </div>
       <button class="close-btn" onclick="closeModalBtn()">✕</button>
     </div>
+    <div class="modal-tabs">
+      <button class="mtab active" onclick="switchMTab('chart')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Chart
+      </button>
+      <button class="mtab" onclick="switchMTab('technical')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Teknikal
+      </button>
+      <button class="mtab" id="mSwingTab" onclick="switchMTab('swing-setup')" style="display:none">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 16s2-2 6-2 8 4 12 4"/><path d="M2 8s2 2 6 2 8-4 12-4"/></svg>Setup Swing
+      </button>
+      <button class="mtab" onclick="switchMTab('trade')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>Entry / TP / SL
+      </button>
+    </div>
     <div class="modal-body">
-      <div class="tf-row">
-        <button class="tf-btn" onclick="setTF('30')" id="tf30">30m</button>
-        <button class="tf-btn active" onclick="setTF('60')" id="tf60">1j</button>
-        <button class="tf-btn" onclick="setTF('240')" id="tf240">4j</button>
-        <button class="tf-btn" onclick="setTF('D')" id="tfD">1H</button>
+
+      <!-- CHART -->
+      <div class="tab-panel" id="tabChart">
+        <div class="tf-row">
+          <button class="tf-btn" onclick="setTF('30')"  id="tf30">30m</button>
+          <button class="tf-btn active" onclick="setTF('60')"  id="tf60">1 Jam</button>
+          <button class="tf-btn" onclick="setTF('240')" id="tf240">4 Jam</button>
+          <button class="tf-btn" onclick="setTF('D')"   id="tfD">1 Hari</button>
+        </div>
+        <div class="chart-frame"><iframe id="tvFrame" src=""></iframe></div>
+        <div class="chart-foot"><a id="tvLink" href="#" target="_blank">Buka chart penuh di TradingView ↗</a></div>
       </div>
-      <div class="chart-wrap">
-        <iframe id="tvFrame" src=""></iframe>
+
+      <!-- TECHNICAL -->
+      <div class="tab-panel hidden" id="tabTechnical">
+        <div class="tech-tf-tabs">
+          <button class="tftab active" onclick="switchTechTF('30')"  id="ttf30">30 Menit</button>
+          <button class="tftab"        onclick="switchTechTF('60')"  id="ttf60">1 Jam</button>
+          <button class="tftab"        onclick="switchTechTF('240')" id="ttf240">4 Jam</button>
+          <button class="tftab"        onclick="switchTechTF('D')"   id="ttfD">1 Hari</button>
+        </div>
+        <div id="techContent"><div class="tech-loading"><div class="spinner"></div> Memuat data teknikal...</div></div>
       </div>
-      <div class="modal-foot">
-        Chart via TradingView · <a id="tvDirectLink" href="#" target="_blank">Buka di TradingView ↗</a>
+
+      <!-- SWING SETUP -->
+      <div class="tab-panel hidden" id="tabSwingSetup">
+        <div id="swingSetupContent"><div class="tech-loading"><div class="spinner"></div>Memuat analisis swing...</div></div>
       </div>
+
+      <!-- TRADE -->
+      <div class="tab-panel hidden" id="tabTrade">
+        <div class="trade-panel">
+          <div class="rr-box">
+            <div class="rr-top"><span class="rr-label">Risk / Reward Ratio</span><span class="rr-val" id="rrDisp">1 : 2.0</span></div>
+            <input type="range" id="rrSlider" min="10" max="50" value="20" step="1" oninput="updateTrade()" class="rr-slider">
+            <div class="rr-ticks"><span>1:1</span><span>1:2</span><span>1:3</span><span>1:4</span><span>1:5</span></div>
+          </div>
+          <div class="trade-3">
+            <div class="tc tc-e"><div class="tc-icon">🎯</div><div class="tc-lbl">Entry Price</div><div class="tc-price" id="tcEntry">—</div><div class="tc-sub" id="tcEntrySub">Harga penutupan</div></div>
+            <div class="tc tc-tp"><div class="tc-icon">✅</div><div class="tc-lbl">Take Profit</div><div class="tc-price" id="tcTP">—</div><div class="tc-sub" id="tcTPSub">—</div></div>
+            <div class="tc tc-sl"><div class="tc-icon">🛑</div><div class="tc-lbl">Stop Loss</div><div class="tc-price" id="tcSL">—</div><div class="tc-sub" id="tcSLSub">—</div></div>
+          </div>
+          <div class="rr-visual">
+            <div class="rr-bar-wrap">
+              <span class="rr-bar-lbl" style="color:var(--red)">SL</span>
+              <div class="rr-bar"><div class="rr-bar-sl" id="barSL" style="width:15%"></div><div class="rr-bar-tp" id="barTP" style="width:30%"></div></div>
+              <span class="rr-bar-lbl" style="color:var(--green)">TP</span>
+            </div>
+            <div class="rr-bar-sub"><span id="pvSL" style="color:var(--red)">—</span><span style="color:var(--text-3)">← Entry →</span><span id="pvTP" style="color:var(--green)">—</span></div>
+          </div>
+          <div>
+            <div class="label" style="margin-bottom:10px;display:block">Referensi Support &amp; Resistance</div>
+            <div class="sr-ref-grid">
+              <div class="sr-ref-box"><span class="label" style="color:var(--red)">Resistance 2</span><div class="val" id="trR2">—</div></div>
+              <div class="sr-ref-box"><span class="label" style="color:var(--red)">Resistance 1</span><div class="val" id="trR1">—</div></div>
+              <div class="sr-ref-box"><span class="label" style="color:var(--green)">Support 1</span><div class="val" id="trS1">—</div></div>
+              <div class="sr-ref-box"><span class="label" style="color:var(--green)">Support 2</span><div class="val" id="trS2">—</div></div>
+            </div>
+          </div>
+          <div class="trade-disc">⚠️ Entry, TP, SL dihitung otomatis dari data historis. Bukan rekomendasi investasi. Selalu lakukan DYOR.</div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
 
 <script>
-// ================================================================
-// TICKER LISTS — Sumber: syariahsaham.id / BEI / OJK
-// JII30 ⊂ JII70 ⊂ ISSI
-// ================================================================
+// ============================================================
+// TICKERS — BEI/OJK
+// ============================================================
 const TICKERS = {
-
   JII30: [
-    'AALI','ADRO','AKRA','ANTM','ASII',
-    'BRIS','BRPT','CPIN','CTRA','EXCL',
-    'HEAL','ICBP','INCO','INDF','INKP',
-    'INTP','ISAT','ITMG','KLBF','MAPI',
-    'MDKA','MIKA','MYOR','PGAS','PTBA',
-    'SIDO','SMGR','TLKM','TPIA','UNTR'
+    'AADI','ACES','ADMR','ADRO','ANTM','ASII','BRIS','BRMS',
+    'BUMI','CPIN','DSSA','EXCL','ICBP','INCO','INDF','INKP',
+    'ISAT','JPFA','KLBF','MBMA','MDKA','MEDC','PANI','PGAS',
+    'PGEO','PTBA','RATU','TLKM','TPIA','UNTR'
   ],
-
   JII70: [
-    'AALI','ACES','ADRO','AGII','AKRA',
-    'ANTM','ASII','BANK','BRIS','BRPT',
-    'BSDE','BTPS','CPIN','CTRA','DSNG',
-    'ELSA','ERAA','EXCL','HEAL','HRUM',
-    'ICBP','INCO','INDF','INKP','INTP',
-    'ISAT','ITMG','JPFA','KLBF','LSIP',
-    'MAPI','MDKA','MIKA','MNCN','MPMX',
-    'MTDL','MYOR','PGAS','PRDA','PTBA',
-    'PTPP','PWON','SCMA','SIDO','SMDR',
-    'SMGR','SMRA','TAPG','TINS','TKIM',
-    'TLKM','TPIA','UNTR','UNVR','WIKA',
-    'BRMS','FILM','IRRA','ISSP','JPFA',
-    'KPIG','LPKR','LPPF','MLPL','MMLP',
-    'WIFI','BMTR','DMAS','BMHS','ENRG'
+    'AADI','AALI','ACES','ADMR','ADRO','AGII','AKRA','AMMN','ANTM','ASII',
+    'BANK','BRIS','BRMS','BSDE','BTPS','BUMI','CPIN','CTRA','DSNG','DSSA',
+    'ELSA','EMTK','ERAA','EXCL','HEAL','HRUM','ICBP','INCO','INDF','INKP',
+    'INTP','ISAT','JPFA','KLBF','LSIP','MAPI','MBMA','MDKA','MEDC','MIKA',
+    'MNCN','MPMX','MTDL','MYOR','PANI','PGAS','PGEO','PRDA','PTBA','PTPP',
+    'PWON','RATU','SCMA','SIDO','SMDR','SMGR','SMRA','TAPG','TINS','TKIM',
+    'TLKM','TPIA','UNTR','UNVR','WIFI','BMTR','DMAS','BMHS','ENRG','FILM'
   ],
-
-  // Daftar ISSI lengkap — 556 saham per periode 2023 + update 2024-2025
   ISSI: [
-    // Energi & Tambang
-    'ENRG','MITI','SURE','AKRA','HITS','KOPI','MTFN','PGAS','RAJA','SHIP',
-    'SOCI','ADRO','AIMS','ARII','BOSS','BSSR','BYAN','DSSA','GEMS','GTBO',
-    'HRUM','ITMG','KKGI','MBAP','PTBA','SMMT','BBRM','BESS','DWGL','FIRE',
-    'MBSS','PSSI','RIGS','SGER','TCPI','TEBE','TPMA','APEX','ELSA','DEWA',
-    'ITMA','MYOH','PKPK','PTRO','TAMU','WINS','WOWS',
-    // Kimia & Plastik
-    'ADMG','AGII','BMSR','BRPT','FPNI','INCI','LTLS','MDKI','TPIA','UNIC',
-    'SAMF','AKPI','APLI','CLPI','DPNS','EKAD','INTP','SMBR','SMCB','SMGR',
-    'WTON','AYLS','ALDO','BRNA','EPAC','ESIP','IGAR','IPOL','KDSI','PANI',
-    'PBID','SMKL','SPMA','TRST','YPAS',
-    // Logam & Manufaktur
-    'ALKA','ALMI','INAI','CITA','TBMS','PSAB','SQMI','BTON','CTBN','GDST',
-    'GGRP','ISSP','LMSH','OPMS','ANTM','BRMS','DKFT','IFSH','INCO','TINS',
-    'IFII','KAYU','INKP','INTD','TKIM',
-    // Keramik & Kaca
-    'AMFG','ARNA','CAKK','IMPC','KIAS','KOIN','MLIA','SINI','SPTO','TOTO',
-    // Kabel & Elektronik
-    'CCSI','IKBI','KBLI','KBLM','SCCO','VOKS',
-    // Alat Berat & Otomotif
-    'HEXA','KOBX','SKRN','UNTR','AMIN','APII','MARK','TIRA',
-    'JTPE','BLUE','KONI','LION',
-    // Jasa & IT
-    'ASGR','ICON','MFMI','SOSS','TFAS','INDX','ABMM','BMTR','MLPL',
-    // Perdagangan & Distribusi
-    'DAYA','EPMT','SDPC','DMND','KMDS','PCAR','HERO','MIDI','MPPA','RANC',
-    // F&B
-    'ADES','CLEO','CAMP','KEJU','ULTJ','AISA','BUDI','CEKA','COCO','FOOD',
-    'GOOD','HOKI','ICBP','INDF','MYOR','ROTI','SKBM','SKLT','STTP','TGKA',
-    // Peternakan & Perikanan
-    'AGAR','CPIN','CPRO','DSFI','ENZO','IKAN','JPFA','MAIN','SIPD','WMUU',
-    // Perkebunan
-    'AALI','ANDI','ANJT','BISI','CSRA','DSNG','FAPA','FISH','GZCO','LSIP',
-    'PALM','PGUN','SGRO','SIMP','WAPO','TAPG',
-    // Consumer
-    'KINO','MBTO','MRAT','TCID','UCID','UNVR','VICI',
-    // Otomotif parts
-    'AUTO','BOLT','INDS','LPIN','SMSM','BRAM','GDYR','GJTL','MASA',
-    // Furniture & Household
-    'CBMF','CINT','GEMA','SOFA','WOOD','SCNP','KICI','LMPI','MICE',
-    // Tekstil & Garmen
-    'IIKP','TOYS','POLU','TRIS','BATA','BELL','INDR','SSTM','TFCO',
-    // Hotel & Properti
-    'ARTA','EAST','FITT','HRME','IKAI','JIHD','JSPT','KPIG','MAMI','MINA',
-    'NASA','PGLI','PLAN','PNSE','PSKT','RISE','SHID','SOTS',
-    // Pariwisata & Hiburan
-    'BAYU','BLTZ','BOLA','JGLE','PJAA',
-    // F&B Resto
-    'CSMI','FAST','MAPB','PTSP','PZZA',
-    // Teknologi & Media
-    'YELO','WIFI','MNCN','SCMA','IPTV','MSKY','TMPO','FILM','MSIN','MKNT',
-    // Retail
-    'LPPF','RALS','MAPA','MAPI','ZONE','ECII','ERAA','SLIS','UFOE','ACES',
-    'CSAP',
-    // Otomotif dealer
-    'BOGA','MPMX','PMJS','TURI',
-    // Kesehatan
-    'IRRA','DGNS','HEAL','MIKA','PRDA','PRIM','SAME','SILO','SRAJ',
-    // Farmasi
-    'DVLA','INAF','KAEF','KLBF','MERK','PEHA','SCPI','SIDO','SOHO','TSPC',
-    // Bank & Keuangan Syariah
-    'BANK','BRIS','BTPS','PNBS','JMAS','KREN','AMAN',
-    // Properti
-    'APLN','ASPI','ASRI','ATAP','BAPA','BAPI','BBSS','BCIP','BEST','BIKA',
-    'BIPP','BKDP','BKSL','BSDE','CITY','CSIS','CTRA','DADA','DILD',
-    'DMAS','DUTI','ELTY','FMII','GAMA','GPRA','GWSA','INPP','JRPT',
-    'KIJA','LPKR','LPLI','MDLN','MKPI','MMLP','MORE','MPRO','MTLA',
-    'MTSM','NIRO','NZIA','OMRE','PAMG','PLIN','PPRE','PRSR','PTPP',
-    'PUDP','PWON','RBMS','RDTX','RODA','SFAN','SGRO','SMDM','SMRA',
-    'TARA','TOTL','WGSH','WIKA','WSBP','WSKT',
-    // Infrastruktur & Utilitas
-    'BUKK','CMNP','JSMR','META','NCKL','PBSA','POWR','PORT','IPCM','IPCC',
-    'KARW','ACST','TOWR','TBIG','EXCL','ISAT','TLKM',
-    // Teknologi informasi
-    'CASS','DCII','DMMX','MLPT','TECH','PTSN','LUCK','MTDL',
-    'DIVA','HDIT','KIOS','MCAS','NFCX','PGJO',
-    // Tambahan update 2024-2025
-    'ARGO','MERI','MBMA','NCKL','AMMN','CBDK','RAJA','SRTG',
-    'ESSA','GOTO','BBYB','BMHS','HELI','LABA','MSIE','RACK',
-    // Tekstil tambahan
-    'PBRX','RICY','STAR','UNIT',
-    // Lain-lain syariah
-    'ABDA','ACST','ADMF','AIMS','AISA','AKSI','ALTO','AMAG',
-    'ANDI','ANJT','APII','APLN','ARNA','ASPI','ATAP','AVIA',
-    'BBSS','BCIP','BFIN','BIKA','BIPP','BKDP','BIRD','BLTZ',
-    'BOLT','BRAM','BRNA','BTON','BUDI','CAKK','CAMP','CASS',
-    'CBMF','CCSI','CEKA','CENT','CINT','CITY','CLPI','COAL',
-    'COCO','CPRO','CSAP','CSMI','CSRA','CTBN','DADA','DAYA',
-    'DEWA','DGNS','DILD','DIMA','DIVA','DMND','DSSA','DUTI',
-    'DVLA','DWGL','EAST','ECII','EKAD','ELTY','ENZO','EPAC',
-    'EPMT','ERAA','ESIP','ESSA','FAST','FAPA','FIRE','FISH',
-    'FITT','FMII','FPNI','GAMA','GDST','GDYR','GEMA','GEMS',
-    'GGRP','GJTL','GOOD','GPRA','GTBO','GWSA','GZCO','HEXA',
-    'HITS','HOKI','HRME','IKAI','IKAN','IKBI','IIKP','IMPC',
-    'INAF','INAI','INCI','INDX','INDS','INPP','INTD','IPCC',
-    'IPCM','IPOL','IPTV','IRRA','ISSP','ITMA','JIHD','JGLE',
-    'JMAS','JRPT','JSPT','JTPE','KAEF','KARW','KAYU','KBLI',
-    'KBLM','KDSI','KEJU','KIAS','KICI','KIJA','KINO','KMDS',
-    'KOBX','KOIN','KONI','KOPI','KREN','LION','LMPI','LMSH',
-    'LPLI','LPIN','LTLS','LUCK','MAIN','MAMI','MAPB','MASA',
-    'MBAP','MBSR','MBTO','MCAS','MDKI','MDLN','MERK','META',
-    'MICE','MIDI','MINA','MLIA','MNCN','MKNT','MKPI','MLPL',
-    'MLPT','MMPZ','MORE','MPPA','MPRO','MRAT','MSKY','MSIE',
-    'MSIN','MTDL','MTFN','MTLA','MTSM','MYOH','NASA','NFCX',
-    'NIRO','NZIA','OMRE','OPMS','PALM','PAMG','PANI','PBID',
-    'PBRX','PCAR','PGLI','PGJO','PKPK','PLAN','PLIN','PNBS',
-    'PNSE','POLL','POLU','PORT','POWR','PPRE','PRDA','PRIM',
-    'PRSR','PSAB','PSKT','PSSI','PTRO','PTSP','PUDP','PZZA',
-    'RACK','RALS','RANC','RBMS','RDTX','RICY','RIGS','RISE',
-    'RODA','ROTI','SAME','SAMF','SCCO','SCNP','SCPI','SFAN',
-    'SGER','SGRO','SHID','SIMP','SINI','SIPD','SKBM','SKLT',
-    'SLIS','SMDM','SOCI','SOFA','SOHO','SOSS','SOTS','SQMI',
-    'SRAJ','SRTG','SSTM','STAR','STTP','SURE','SWAT','TBMS',
-    'TECH','TFAS','TFCO','TGKA','TMPO','TOTO','TOYS','TPMA',
-    'TRIS','TRST','TSPC','TURI','UCID','UFOE','UNIC','UNIT',
-    'ULTJ','VICI','VOKS','WAPO','WGSH','WMUU','WSBP','WOWS',
-    'WSKT','YPAS','YELO','ZONE'
+    'ENRG','PGAS','RAJA','SHIP','ADRO','BSSR','BYAN','DSSA','GEMS','HRUM',
+    'MBAP','PTBA','ELSA','DEWA','MYOH','PTRO','WINS','BRMS','INCO','TINS',
+    'ANTM','ADMR','MDKA','NCKL','MBMA','AMMN','ESSA','MEDC','PGEO','AADI',
+    'AGII','LTLS','TPIA','UNIC','BUMI','INTP','SMBR','SMGR','WTON','ALDO',
+    'EKAD','PBID','SMKL','SPMA','TRST','INAI','ISSP','LMSH','AMFG','ARNA',
+    'IMPC','TOTO','INKP','TKIM','KBLI','KBLM','SCCO','VOKS','AUTO','SMSM',
+    'BRAM','GJTL','CINT','WOOD','TRIS','INDR','EAST','AKRA','ASGR','ABMM',
+    'BMTR','MLPL','EPMT','SDPC','MPMX','TURI','CSAP','ERAA','MTDL','FILM',
+    'ADES','CLEO','CAMP','ULTJ','BUDI','CEKA','COCO','GOOD','HOKI','ICBP',
+    'INDF','MYOR','ROTI','SKBM','SKLT','STTP','TGKA','UNVR','KINO','UCID',
+    'AALI','ANJT','BISI','CSRA','DSNG','LSIP','PGUN','SGRO','SIMP','TAPG',
+    'JPFA','CPIN','MAIN','WMUU','ACES','HERO','LPPF','RALS','MAPI','MAPB',
+    'MNCN','SCMA','ASRI','BCIP','BEST','BKSL','BSDE','CTRA','DILD','DMAS',
+    'DUTI','JRPT','KIJA','LPKR','MKPI','MMLP','MTLA','PTPP','PUDP','PWON',
+    'RDTX','SMRA','TOTL','WIKA','WSKT','PJAA','KPIG','HRME','RISE','BAYU',
+    'WIFI','TOWR','TBIG','EXCL','ISAT','TLKM','PANI','HEAL','MIKA','PRDA',
+    'SILO','DVLA','INAF','KLBF','MERK','SIDO','TSPC','BANK','BRIS','BTPS',
+    'PNBS','IPCM','FAST','PZZA','YELO','BUKK','ARGO','SRTG','PBSA','POWR',
+    'SMDR','BATA','KAEF','HILL','BOLA','RMKO','MSIN'
   ]
 };
+Object.keys(TICKERS).forEach(k => { TICKERS[k] = [...new Set(TICKERS[k])]; });
 
-// Deduplicate semua
-Object.keys(TICKERS).forEach(k => {
-  TICKERS[k] = [...new Set(TICKERS[k])];
+// ── DOM helper
+const $ = id => document.getElementById(id);
+
+// ── Update counts
+const updCnt = (pre, key) => {
+  const el = $(pre + key);
+  if (el) el.textContent = TICKERS[key].length + ' saham';
+};
+['JII30','JII70','ISSI'].forEach(k => {
+  updCnt('bsjp-cnt-', k);
+  updCnt('sw-cnt-', k);
 });
 
+// ============================================================
+// GLOBAL STATE
+// ============================================================
+let appMode       = 'bsjp';   // 'bsjp' | 'swing'
+let bsjpIdx       = 'JII30';
+let swingIdx      = 'JII30';
+let bsjpScanning  = false;
+let swingScanning = false;
+let bsjpResults   = [];
+let swingResults  = [];
+let currentStock  = null;
+let currentMode   = 'bsjp';   // mode of the open modal
+let currentTF     = '60';
+let currentTechTF = '60';
 
+const techCache = {};    // { code: { '30': bars, ... } }
+const swingCache = {};   // swing-specific daily analysis
 
-// Update counts
-document.getElementById('cnt-JII30').textContent = TICKERS.JII30.length + ' saham';
-document.getElementById('cnt-JII70').textContent = TICKERS.JII70.length + ' saham';
-document.getElementById('cnt-ISSI').textContent = TICKERS.ISSI.length + ' saham';
-
-// ================================================================
-// STATE
-// ================================================================
-let selectedIndex = 'JII30';
-let scanning = false;
-let passResults = [];
-let currentTicker = '';
-let currentTF = '60';
-
-// ================================================================
+// ============================================================
 // CLOCK
-// ================================================================
-function tick() {
-  document.getElementById('clock').textContent =
-    new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' WIB';
-}
-setInterval(tick, 1000);
-tick();
+// ============================================================
+setInterval(() => {
+  const el = $('clock');
+  if (el) el.textContent = new Date().toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB';
+}, 1000);
 
-// ================================================================
-// INDEX SELECTOR
-// ================================================================
-function selectIndex(idx) {
-  if (scanning) return;
-  selectedIndex = idx;
-  ['JII30', 'JII70', 'ISSI'].forEach(i => {
-    document.getElementById('card-' + i).classList.toggle('active', i === idx);
+// ============================================================
+// APP MODE SWITCH
+// ============================================================
+function switchAppMode(mode) {
+  appMode = mode;
+  // panels
+  $('panelBSJP').classList.toggle('active', mode==='bsjp');
+  $('panelSwing').classList.toggle('active', mode==='swing');
+  // tabs
+  $('appTabBSJP').className = 'app-tab' + (mode==='bsjp'?' active-bsjp':'');
+  $('appTabSwing').className = 'app-tab' + (mode==='swing'?' active-swing':'');
+  // update accent CSS var for shared components
+  const root = document.documentElement;
+  if (mode==='bsjp') {
+    root.style.setProperty('--accent', 'var(--bsjp)');
+    root.style.setProperty('--accent-dim', 'var(--bsjp-dim)');
+  } else {
+    root.style.setProperty('--accent', 'var(--swing)');
+    root.style.setProperty('--accent-dim', 'var(--swing-dim)');
+  }
+  // idx-card active color responds to --accent already
+  updateIdxCardColors();
+}
+
+function updateIdxCardColors() {
+  // active cards automatically reflect --accent via CSS
+}
+
+// ============================================================
+// INDEX SELECTORS
+// ============================================================
+function bsjpSelectIdx(idx) {
+  if (bsjpScanning) return;
+  bsjpIdx = idx;
+  ['JII30','JII70','ISSI'].forEach(k =>
+    $('bsjp-card-'+k).classList.toggle('active', k===idx)
+  );
+}
+
+function swingSelectIdx(idx) {
+  if (swingScanning) return;
+  swingIdx = idx;
+  ['JII30','JII70','ISSI'].forEach(k =>
+    $('sw-card-'+k).classList.toggle('active', k===idx)
+  );
+}
+
+// ============================================================
+// FETCH UTILITIES
+// ============================================================
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function fetchT(url, ms) {
+  return new Promise((res, rej) => {
+    const t = setTimeout(() => rej(new Error('timeout')), ms);
+    fetch(url).then(r=>{clearTimeout(t);res(r);}).catch(e=>{clearTimeout(t);rej(e);});
   });
 }
 
-// ================================================================
-// YAHOO FINANCE FETCH — multi-proxy fallback, no AbortSignal
-// ================================================================
-
-// Timeout tanpa AbortSignal (menghindari postMessage clone error)
-function fetchWithTimeout(url, ms) {
-  return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('timeout')), ms);
-    fetch(url)
-      .then(r => { clearTimeout(t); resolve(r); })
-      .catch(e => { clearTimeout(t); reject(e); });
-  });
+function buildProxies(u) {
+  const enc = encodeURIComponent(u);
+  return [
+    `https://corsproxy.io/?url=${enc}`,
+    `https://api.allorigins.win/raw?url=${enc}`,
+    `https://thingproxy.freeboard.io/fetch/${u}`,
+    `https://api.codetabs.com/v1/proxy?quest=${enc}`,
+    `https://cors.eu.org/${u}`,
+  ];
 }
 
-async function fetchStock(code) {
-  const ticker = code + '.JK';
-  // Coba query1 dulu, fallback ke query2
-  const YAHOO_URLS = [
-    `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=30d`,
-    `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=30d`,
+async function fetchYahoo(ticker, interval, range) {
+  const urls = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=${interval}&range=${range}&includePrePost=false`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=${interval}&range=${range}&includePrePost=false`,
   ];
-  // Proxy list — dicoba urut, berhenti saat berhasil
-  const PROXIES = [
-    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-    u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
-    u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-  ];
-
-  let rawText = null;
-  let lastErr = 'all proxies failed';
-
+  let raw = null, lastErr = 'all failed';
   outer:
-  for (const yahooUrl of YAHOO_URLS) {
-    for (const makeProxy of PROXIES) {
+  for (const yu of urls) {
+    for (const px of buildProxies(yu)) {
       try {
-        const proxyUrl = makeProxy(yahooUrl);
-        const res = await fetchWithTimeout(proxyUrl, 12000);
+        const res = await fetchT(px, 13000);
+        if (res.status===403||res.status===429) { lastErr=`http ${res.status}`; await sleep(200); continue; }
         if (!res.ok) throw new Error(`http ${res.status}`);
-        rawText = await res.text();
-        if (rawText && rawText.length > 50) break outer; // sukses
-        throw new Error('empty response');
-      } catch (e) {
-        lastErr = e.message;
-      }
+        const txt = await res.text();
+        if (!txt||txt.length<80) throw new Error('empty');
+        if (txt.trim().startsWith('<')) throw new Error('html');
+        raw = txt; break outer;
+      } catch(e) { lastErr=e.message; await sleep(150); }
     }
   }
-
-  if (!rawText) throw new Error(lastErr);
-
+  if (!raw) throw new Error(lastErr);
   let data;
-  try { data = JSON.parse(rawText); } catch { throw new Error('parse error'); }
-
-  // allorigins /get membungkus dalam {contents}, /raw tidak
-  if (data && data.contents && typeof data.contents === 'string') {
-    data = JSON.parse(data.contents);
-  }
-
+  try { data = JSON.parse(raw); } catch { throw new Error('parse'); }
+  if (data?.contents) { try { data=JSON.parse(data.contents); } catch { throw new Error('parse2'); } }
+  if (data?.chart?.error) throw new Error(data.chart.error.description||'yahoo error');
   const result = data?.chart?.result?.[0];
   if (!result) throw new Error('nodata');
+  const q = result.indicators.quote[0];
+  const bars = [];
+  for (let i=0;i<q.close.length;i++) {
+    if (q.close[i]&&q.high[i]&&q.low[i]&&q.volume[i]>0)
+      bars.push({c:q.close[i],h:q.high[i],l:q.low[i],v:q.volume[i],o:q.open[i]||q.close[i]});
+  }
+  return bars;
+}
 
-  const closes = result.indicators.quote[0].close;
-  const volumes = result.indicators.quote[0].volume;
+async function fetchDaily(code) {
+  const ticker = code+'.JK';
+  if (techCache[code]?.['D']) return techCache[code]['D'];
+  const bars = await fetchYahoo(ticker, '1d', '100d');
+  if (!techCache[code]) techCache[code]={};
+  techCache[code]['D'] = bars;
+  return bars;
+}
 
-  const valid = closes
-    .map((c, i) => ({ c, v: volumes[i] }))
-    .filter(x => x.c !== null && x.c !== undefined && x.v !== null && x.v > 0);
+async function fetchTFBars(code, tf) {
+  if (techCache[code]?.[tf]) return techCache[code][tf];
+  const cfg = TF_CONFIG[tf];
+  const bars = await fetchYahoo(code+'.JK', cfg.interval, cfg.range);
+  if (!techCache[code]) techCache[code]={};
+  techCache[code][tf] = bars;
+  return bars;
+}
 
-  if (valid.length < 6) throw new Error('insufficient');
+const TF_CONFIG = {
+  '30':  { interval:'30m',  range:'5d',   label:'30 Menit' },
+  '60':  { interval:'60m',  range:'14d',  label:'1 Jam' },
+  '240': { interval:'4h',   range:'60d',  label:'4 Jam' },
+  'D':   { interval:'1d',   range:'100d', label:'1 Hari' },
+};
 
-  const last = valid[valid.length - 1];
-  const prev = valid[valid.length - 2];
-  const ma5 = valid.slice(-5).reduce((a, x) => a + x.c, 0) / 5;
+// ============================================================
+// INDICATOR CALCULATIONS
+// ============================================================
+const maN = (bars,n) => bars.length>=n ? bars.slice(-n).reduce((a,b)=>a+b.c,0)/n : null;
 
+function calcRSI(closes, period=14) {
+  if (closes.length<period+1) return null;
+  let g=0,l=0;
+  for(let i=1;i<=period;i++){const d=closes[i]-closes[i-1];d>0?g+=d:l-=d;}
+  let ag=g/period,al=l/period;
+  for(let i=period+1;i<closes.length;i++){
+    const d=closes[i]-closes[i-1];
+    ag=(ag*(period-1)+Math.max(d,0))/period;
+    al=(al*(period-1)+Math.max(-d,0))/period;
+  }
+  return al===0?100:100-100/(1+ag/al);
+}
+
+function calcMACD(closes,fast=12,slow=26,signal=9) {
+  if(closes.length<slow+signal) return null;
+  const ema=(arr,p)=>{const k=2/(p+1);let e=arr[0];const r=[e];for(let i=1;i<arr.length;i++){e=arr[i]*k+e*(1-k);r.push(e);}return r;};
+  const fEMA=ema(closes,fast),sEMA=ema(closes,slow);
+  const ml=fEMA.map((v,i)=>v-sEMA[i]).slice(slow-1);
+  const sl2=ema(ml,signal);
+  const hist=ml[ml.length-1]-sl2[sl2.length-1];
+  return{macd:ml[ml.length-1],signal:sl2[sl2.length-1],hist,bullish:hist>0};
+}
+
+function calcBB(closes,period=20,mult=2) {
+  if(closes.length<period) return null;
+  const sl=closes.slice(-period);
+  const avg=sl.reduce((a,b)=>a+b,0)/period;
+  const std=Math.sqrt(sl.reduce((a,b)=>a+(b-avg)**2,0)/period);
+  const upper=avg+mult*std,lower=avg-mult*std;
+  return{upper,mid:avg,lower,pct:(closes[closes.length-1]-lower)/(upper-lower)*100};
+}
+
+function calcStoch(bars,period=14) {
+  if(bars.length<period) return null;
+  const sl=bars.slice(-period);
+  const H=Math.max(...sl.map(b=>b.h)),L=Math.min(...sl.map(b=>b.l));
+  return H===L?50:(bars[bars.length-1].c-L)/(H-L)*100;
+}
+
+function detectTrend(price,ma20,ma50) {
+  const a20=ma20&&price>ma20,a50=ma50&&price>ma50,mx=ma20&&ma50&&ma20>ma50;
+  if(a20&&a50&&mx) return 'UPTREND KUAT';
+  if(a20&&a50)     return 'UPTREND';
+  if(a20&&!a50)    return 'UPTREND LEMAH';
+  if(!a20&&!a50)   return 'DOWNTREND';
+  return 'SIDEWAYS';
+}
+
+function calcSR(bars) {
+  const p=bars[bars.length-2]||bars[bars.length-1];
+  const PP=(p.h+p.l+p.c)/3;
+  const r1=2*PP-p.l,r2=PP+(p.h-p.l);
+  const s1=2*PP-p.h,s2=PP-(p.h-p.l);
+  const lows=bars.map(b=>b.l).sort((a,b)=>a-b);
+  const his=bars.map(b=>b.h).sort((a,b)=>b-a);
+  return{s1,s2:Math.min(s2,lows[Math.floor(lows.length*.1)]),r1,r2:Math.max(r2,his[Math.floor(his.length*.1)])};
+}
+
+function isRetracement(bars) {
+  // candle terakhir adalah retracement: close < open (bearish candle) ATAU close turun dari bar sebelumnya
+  if (bars.length < 2) return false;
+  const last = bars[bars.length-1];
+  const prev = bars[bars.length-2];
+  const bearishCandle = last.c < last.o;              // bearish body
+  const closeLower    = last.c < prev.c;              // harga turun dari sebelumnya
+  const upperWick     = last.h > Math.max(last.o,last.c) * 1.002; // ada upper wick
+  return bearishCandle || (closeLower && upperWick);
+}
+
+// ============================================================
+// BSJP FETCH + CRITERIA
+// ============================================================
+async function fetchForBSJP(code) {
+  let bars = await fetchDaily(code);
+  if (bars.length < 10) throw new Error('insufficient');
+  const last=bars[bars.length-1], prev=bars[bars.length-2];
+  const ma5=maN(bars,5),ma20=maN(bars,20),ma50=maN(bars,50),ma100=maN(bars,100);
+  const rsi=calcRSI(bars.map(b=>b.c));
+  const trend=detectTrend(last.c,ma20,ma50);
+  const sr=calcSR(bars.slice(-30));
   return {
-    code,
-    price: last.c,
-    prevPrice: prev.c,
-    volume: last.v,
-    prevVolume: prev.v,
-    ma5,
-    value: last.c * last.v,
-    change: (last.c - prev.c) / prev.c,
-    volRatio: prev.v > 0 ? last.v / prev.v : 0,
+    code, bars,
+    price:last.c, prevPrice:prev.c, high:last.h, low:last.l,
+    volume:last.v, prevVolume:prev.v, value:last.c*last.v,
+    change:(last.c-prev.c)/prev.c,
+    volRatio:prev.v>0?last.v/prev.v:0,
+    ma5,ma20,ma50,ma100,rsi,trend,
+    s1:sr.s1,s2:sr.s2,r1:sr.r1,r2:sr.r2,
   };
 }
 
-function check(d) {
-  const c1 = d.price >= 1.05 * d.prevPrice;
-  const c2 = d.price >= d.ma5;
-  const c3 = d.volume >= 1.2 * d.prevVolume;
-  const c4 = d.value > 1_000_000_000;
-  return { c1, c2, c3, c4, pass: c1 && c2 && c3 && c4 };
+function checkBSJP(d) {
+  const c1=d.price>=1.05*d.prevPrice;
+  const c2=d.ma5&&d.price>=d.ma5;
+  const c3=d.volume>=1.2*d.prevVolume;
+  const c4=d.value>1e9;
+  return{c1,c2,c3,c4,pass:c1&&c2&&c3&&c4};
 }
 
-// ================================================================
-// FORMAT
-// ================================================================
-function fmtRp(v) {
-  if (v >= 1e12) return 'Rp ' + (v / 1e12).toFixed(2) + ' T';
-  if (v >= 1e9) return 'Rp ' + (v / 1e9).toFixed(2) + ' M';
-  if (v >= 1e6) return 'Rp ' + (v / 1e6).toFixed(1) + ' Jt';
-  return 'Rp ' + v.toLocaleString('id-ID');
+// ============================================================
+// SWING FETCH + CRITERIA
+// ============================================================
+async function fetchForSwing(code) {
+  // Need 1D bars (for trend, MA20) AND 1H bars (for retracement + RSI check)
+  const barsD = await fetchDaily(code);
+  if (barsD.length < 20) throw new Error('insufficient');
+
+  const bars1H = await fetchTFBars(code, '60');
+  if (bars1H.length < 20) throw new Error('insufficient-1h');
+
+  // Daily: MA20 and trend
+  const ma20D = maN(barsD, 20);
+  const ma50D = maN(barsD, 50);
+  const lastD  = barsD[barsD.length-1];
+  const trendD = detectTrend(lastD.c, ma20D, ma50D);
+
+  // 1H: current price, MA20, RSI, retracement
+  const last1H  = bars1H[bars1H.length-1];
+  const price1H = last1H.c;
+  const ma20_1H = maN(bars1H, 20);
+  const rsi1H   = calcRSI(bars1H.map(b=>b.c));
+  const retrace = isRetracement(bars1H);
+
+  // Criteria per spec
+  const s1 = ma20_1H && price1H > 1.25 * ma20_1H;
+  const s2 = retrace;
+  const s3 = trendD.includes('UPTREND');          // uptrend di 1D
+  const s4 = rsi1H !== null && rsi1H > 50 && rsi1H < 65;
+
+  const ma5D=maN(barsD,5),ma100D=maN(barsD,100);
+  const sr=calcSR(barsD.slice(-30));
+
+  return {
+    code, bars:barsD, bars1H,
+    price:lastD.c, price1H,
+    prevPrice:barsD[barsD.length-2].c,
+    high:lastD.h, low:lastD.l,
+    volume:lastD.v, prevVolume:barsD[barsD.length-2].v,
+    value:lastD.c*lastD.v,
+    change:(lastD.c-barsD[barsD.length-2].c)/barsD[barsD.length-2].c,
+    volRatio:barsD[barsD.length-2].v>0?lastD.v/barsD[barsD.length-2].v:0,
+    ma5D, ma20D, ma50D, ma100D,
+    ma20_1H, rsi1H, retrace, trendD,
+    s1,s2,s3,s4, pass:s1&&s2&&s3&&s4,
+    s1:sr.s1,s2:sr.s2,r1:sr.r1,r2:sr.r2,
+    // overwrite s1/s2 to keep SR names distinct
+    sr:{s1:sr.s1,s2:sr.s2,r1:sr.r1,r2:sr.r2},
+    sw:{s1,s2,s3,s4,ma20_1H,rsi1H,retrace,trendD,price1H},
+  };
 }
 
-function fmtPrice(v) {
-  return 'Rp ' + v.toLocaleString('id-ID', { maximumFractionDigits: 0 });
+// ============================================================
+// FORMAT HELPERS
+// ============================================================
+function fmtRp(v) { if(v>=1e12) return 'Rp '+(v/1e12).toFixed(2)+' T'; if(v>=1e9) return 'Rp '+(v/1e9).toFixed(2)+' M'; if(v>=1e6) return 'Rp '+(v/1e6).toFixed(1)+' Jt'; return 'Rp '+v.toLocaleString('id-ID'); }
+const fmtP   = v => v==null?'—':'Rp '+Math.round(v).toLocaleString('id-ID');
+const fmtPct = v => (v>=0?'+':'')+(v*100).toFixed(2)+'%';
+const fmtN   = (v,d=1) => v==null?'—':v.toFixed(d);
+
+function rsiColor(v) {
+  if(v==null) return 'var(--text-3)';
+  if(v>=70) return 'var(--red)';
+  if(v>=65) return 'var(--gold)';
+  if(v>=50) return 'var(--green)';
+  return 'var(--text-3)';
+}
+function rsiLabel(v) {
+  if(v==null) return 'N/A';
+  if(v>=70) return 'Overbought';
+  if(v>=65) return 'Mendekati OB';
+  if(v>=50) return 'Zona Swing';
+  if(v>=30) return 'Normal';
+  return 'Oversold';
+}
+function trendColor(t) {
+  if(!t) return 'var(--text-3)';
+  if(t.includes('KUAT'))   return 'var(--green)';
+  if(t==='UPTREND')        return '#16a34a';
+  if(t.includes('LEMAH'))  return 'var(--gold)';
+  if(t==='DOWNTREND')      return 'var(--red)';
+  return 'var(--text-3)';
+}
+function getSL(d) {
+  const sr = d.sr || d;
+  const fromS1=sr.s1>0&&sr.s1<d.price?sr.s1*.995:d.price*.97;
+  const fromLow=d.low?d.low*.995:d.price*.97;
+  return Math.max(Math.max(fromS1,fromLow), d.price*.93);
 }
 
-function fmtPct(v) {
-  return (v >= 0 ? '+' : '') + (v * 100).toFixed(2) + '%';
-}
+// ============================================================
+// SCAN ENGINE (generic)
+// ============================================================
+async function runScan({
+  mode, idx, customId, btnId, btnTxtId, progBoxId, spinId, progLblId, progPctId,
+  fillId, logId, statsId, stTotalId, stPassId, stFailId, stTimeId,
+  resultsId, gridId, passCountId, tsId, metaId, noPassId, emptyId,
+  fetchFn, passFn, renderFn, passArr, scanningFlag, setScanningFlag
+}) {
+  if (scanningFlag()) return;
+  setScanningFlag(true);
+  passArr.length = 0;
 
-// ================================================================
-// SCAN
-// ================================================================
-async function startScan() {
-  if (scanning) return;
-  scanning = true;
-  passResults = [];
-
-  // Gabungkan ticker indeks + custom input
-  const customRaw = document.getElementById('customInput').value
-    .toUpperCase().split(/[\s,;\n]+/).map(t => t.trim()).filter(t => t.length >= 2 && t.length <= 6);
-  const baseTickers = TICKERS[selectedIndex];
-  const tickers = [...new Set([...baseTickers, ...customRaw])];
+  const customRaw = $(customId).value.toUpperCase().split(/[\s,;\n]+/)
+    .map(t=>t.trim()).filter(t=>t.length>=2&&t.length<=6);
+  const tickers = [...new Set([...TICKERS[idx], ...customRaw])];
   const t0 = Date.now();
 
-  // UI: scanning state
-  document.getElementById('scanBtn').disabled = true;
-  document.getElementById('scanBtnTxt').textContent = 'Scanning...';
-  document.getElementById('emptyState').style.display = 'none';
-  document.getElementById('noResults').classList.remove('show');
-  document.getElementById('resultsSection').classList.remove('show');
-  document.getElementById('statsGrid').classList.remove('show');
-  document.getElementById('progressWrap').classList.add('show');
-  document.getElementById('progressLog').innerHTML = '';
-  document.getElementById('barFill').style.width = '0%';
-  document.getElementById('cardsGrid').innerHTML = '';
+  // Reset UI
+  $(btnId).disabled = true;
+  $(btnTxtId).textContent = 'Scanning...';
+  $(emptyId).style.display = 'none';
+  $(noPassId).classList.remove('show');
+  $(resultsId).style.display = 'none';
+  $(statsId).classList.remove('show');
+  $(progBoxId).classList.add('show');
+  $(logId).innerHTML = '';
+  $(fillId).style.width = '0%';
+  $(spinId).style.display = '';
+  $(gridId).innerHTML = '';
 
-  let done = 0;
-  let errors = 0;
+  let done=0, errors=0;
+  const retryQ = [];
 
   const addLog = (code, msg, cls) => {
-    const el = document.getElementById('progressLog');
+    const el = $(logId);
     el.innerHTML += `<div class="${cls}">${code}: ${msg}</div>`;
     el.scrollTop = el.scrollHeight;
   };
 
-  const updateProgress = () => {
-    const pct = Math.round((done / tickers.length) * 100);
-    document.getElementById('barFill').style.width = pct + '%';
-    document.getElementById('progressPct').textContent = pct + '%';
-    document.getElementById('progressLabel').textContent =
-      `Memindai ${selectedIndex} (${done}/${tickers.length})...`;
+  const updateProg = () => {
+    const pct = Math.round(done/tickers.length*100);
+    $(fillId).style.width = pct+'%';
+    $(progPctId).textContent = pct+'%';
+    $(progLblId).textContent = `Memindai ${idx} — ${done} / ${tickers.length}`;
   };
 
-  // Batch 4 at a time
-  const BATCH = 4;
-  for (let i = 0; i < tickers.length; i += BATCH) {
-    const batch = tickers.slice(i, i + BATCH);
-    await Promise.all(batch.map(async (code) => {
-      try {
-        const d = await fetchStock(code);
-        const cr = check(d);
-        done++;
-        if (cr.pass) {
-          passResults.push({ ...d, cr });
-          addLog(code, `✓ LULUS — ${fmtPct(d.change)} | Vol×${d.volRatio.toFixed(1)}`, 'log-pass');
-          renderCard({ ...d, cr }); // render immediately
-        } else {
-          addLog(code, `✗`, 'log-fail');
-        }
-      } catch (e) {
-        done++;
-        errors++;
-        // Hanya tampilkan error jika bukan "Failed to fetch" / ticker tidak ada
-        const msg = e.message || '';
-        const isNotFound = msg.includes('fetch') || msg.includes('nodata') || msg.includes('insufficient');
-        if (!isNotFound) {
-          addLog(code, `err: ${msg}`, 'log-err');
-        }
-        // silent skip — lanjut ke saham berikutnya
+  const processTicker = async (code, isRetry=false) => {
+    try {
+      const d = await fetchFn(code);
+      if (!isRetry) done++;
+      if (passFn(d)) {
+        passArr.push(d);
+        addLog(code, `✓ LULUS — ${fmtPct(d.change)} · ${d.trendD||d.trend}`, 'log-ok');
+        renderFn(d);
+        // update tab badge
+        const badgeEl = $(mode==='bsjp'?'bsjpBadge':'swingBadge');
+        if (badgeEl) badgeEl.textContent = passArr.length;
+      } else {
+        addLog(code, '✗ tidak memenuhi kriteria', 'log-no');
       }
-      updateProgress();
-    }));
-    if (i + BATCH < tickers.length) await delay(250);
+    } catch(e) {
+      const m = e.message||'';
+      const is4xx = m.includes('403')||m.includes('429');
+      if (is4xx&&!isRetry) { retryQ.push(code); addLog(code,'⏳ retry...','log-sys'); }
+      else {
+        if(!isRetry) done++;
+        errors++;
+        const silent=m.includes('Failed to fetch')||m.includes('nodata')||m.includes('insufficient')||m.includes('html');
+        if(!silent) addLog(code,`✗ err: ${m}`,'log-err');
+        else addLog(code,'✗ tidak tersedia','log-no');
+      }
+    }
+    if(!isRetry) updateProg();
+  };
+
+  const BATCH=3;
+  for(let i=0;i<tickers.length;i+=BATCH) {
+    await Promise.all(tickers.slice(i,i+BATCH).map(c=>processTicker(c)));
+    if(i+BATCH<tickers.length) await sleep(500);
   }
 
-  // Done
-  const elapsed = ((Date.now() - t0) / 1000).toFixed(1) + 's';
-  const fails = tickers.length - errors - passResults.length;
-
-  document.getElementById('stTotal').textContent = tickers.length;
-  document.getElementById('stPass').textContent = passResults.length;
-  document.getElementById('stFail').textContent = fails;
-  document.getElementById('stTime').textContent = elapsed;
-  document.getElementById('statsGrid').classList.add('show');
-
-  document.getElementById('progressLabel').textContent = 'Selesai!';
-  document.getElementById('spinEl').style.display = 'none';
-
-  document.getElementById('passCount').textContent = passResults.length;
-  document.getElementById('scanTime').textContent =
-    new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' WIB';
-
-  if (passResults.length === 0) {
-    document.getElementById('noResults').classList.add('show');
-  } else {
-    document.getElementById('resultsSection').classList.add('show');
+  if(retryQ.length>0) {
+    addLog('SYSTEM',`Retry ${retryQ.length} saham...`,'log-sys');
+    for(const code of retryQ){ await sleep(3000); done++; await processTicker(code,true); updateProg(); }
   }
 
-  document.getElementById('scanNote').textContent =
-    `${selectedIndex} · ${passResults.length} lulus dari ${tickers.length}`;
+  const elapsed = ((Date.now()-t0)/1000).toFixed(1)+'s';
+  $(stTotalId).textContent = tickers.length;
+  $(stPassId).textContent  = passArr.length;
+  $(stFailId).textContent  = tickers.length-errors-passArr.length;
+  $(stTimeId).textContent  = elapsed;
+  $(statsId).classList.add('show');
+  $(progLblId).textContent = 'Selesai ✓';
+  $(spinId).style.display = 'none';
+  $(passCountId).textContent = passArr.length + (mode==='bsjp'?' lulus':' setup');
+  $(tsId).textContent = new Date().toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB';
+  $(metaId).textContent = `${idx} · ${passArr.length} ${mode==='bsjp'?'lulus':'setup'} dari ${tickers.length}`;
 
-  scanning = false;
-  document.getElementById('scanBtn').disabled = false;
-  document.getElementById('scanBtnTxt').textContent = 'Scan Ulang';
+  if(passArr.length===0) { $(noPassId).classList.add('show'); }
+  else { $(resultsId).style.display=''; }
+
+  setScanningFlag(false);
+  $(btnId).disabled = false;
+  $(btnTxtId).textContent = mode==='bsjp'?'Scan Ulang':'Scan Ulang';
 }
 
-function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+// ============================================================
+// BSJP SCAN
+// ============================================================
+async function startBSJPScan() {
+  await runScan({
+    mode:'bsjp', idx:bsjpIdx,
+    customId:'bsjpCustom', btnId:'bsjpScanBtn', btnTxtId:'bsjpBtnTxt',
+    progBoxId:'bsjpProgress', spinId:'bsjpSpinner', progLblId:'bsjpProgLbl',
+    progPctId:'bsjpProgPct', fillId:'bsjpFill', logId:'bsjpLog',
+    statsId:'bsjpStats', stTotalId:'bsjpStTotal', stPassId:'bsjpStPass',
+    stFailId:'bsjpStFail', stTimeId:'bsjpStTime',
+    resultsId:'bsjpResults', gridId:'bsjpGrid', passCountId:'bsjpPassCount',
+    tsId:'bsjpTs', metaId:'bsjpMeta', noPassId:'bsjpNoPass', emptyId:'bsjpEmpty',
+    fetchFn: fetchForBSJP,
+    passFn: d => checkBSJP(d).pass,
+    renderFn: d => renderBSJPCard(d),
+    passArr: bsjpResults,
+    scanningFlag: () => bsjpScanning,
+    setScanningFlag: v => { bsjpScanning = v; },
+  });
+}
 
-// ================================================================
-// RENDER CARD
-// ================================================================
-function renderCard(d) {
-  const grid = document.getElementById('cardsGrid');
-  const c = d.cr;
-  document.getElementById('resultsSection').classList.add('show');
+function resetBSJP() {
+  if(bsjpScanning) return;
+  bsjpResults=[]; $('bsjpGrid').innerHTML='';
+  $('bsjpEmpty').style.display=''; $('bsjpNoPass').classList.remove('show');
+  $('bsjpResults').style.display='none'; $('bsjpStats').classList.remove('show');
+  $('bsjpProgress').classList.remove('show'); $('bsjpBtnTxt').textContent='Scan BSJP';
+  $('bsjpMeta').innerHTML='Pilih indeks &amp; klik Scan<br>Data: Yahoo Finance via proxy';
+  $('bsjpBadge').textContent='0'; $('bsjpSpinner').style.display='';
+}
 
-  const card = document.createElement('div');
-  card.className = 'stock-card';
-  card.onclick = () => openModal(d);
-  card.innerHTML = `
-    <div class="card-top">
-      <div>
-        <div class="card-ticker">${d.code}</div>
-        <div class="card-index-tag">${selectedIndex} · IDX SYARIAH</div>
-      </div>
-      <div class="card-price-block">
-        <div class="card-price">${fmtPrice(d.price)}</div>
-        <div class="card-change ${d.change >= 0 ? 'up' : 'dn'}">
-          ${d.change >= 0 ? '▲' : '▼'} ${fmtPct(d.change)}
+// ============================================================
+// SWING SCAN
+// ============================================================
+async function startSwingScan() {
+  await runScan({
+    mode:'swing', idx:swingIdx,
+    customId:'swingCustom', btnId:'swingScanBtn', btnTxtId:'swingBtnTxt',
+    progBoxId:'swingProgress', spinId:'swingSpinner', progLblId:'swingProgLbl',
+    progPctId:'swingProgPct', fillId:'swingFill', logId:'swingLog',
+    statsId:'swingStats', stTotalId:'swingStTotal', stPassId:'swingStPass',
+    stFailId:'swingStFail', stTimeId:'swingStTime',
+    resultsId:'swingResults', gridId:'swingGrid', passCountId:'swingPassCount',
+    tsId:'swingTs', metaId:'swingMeta', noPassId:'swingNoPass', emptyId:'swingEmpty',
+    fetchFn: fetchForSwing,
+    passFn: d => d.pass,
+    renderFn: d => renderSwingCard(d),
+    passArr: swingResults,
+    scanningFlag: () => swingScanning,
+    setScanningFlag: v => { swingScanning = v; },
+  });
+}
+
+function resetSwing() {
+  if(swingScanning) return;
+  swingResults=[]; $('swingGrid').innerHTML='';
+  $('swingEmpty').style.display=''; $('swingNoPass').classList.remove('show');
+  $('swingResults').style.display='none'; $('swingStats').classList.remove('show');
+  $('swingProgress').classList.remove('show'); $('swingBtnTxt').textContent='Scan Swing';
+  $('swingMeta').innerHTML='Pilih indeks &amp; klik Scan<br>Membutuhkan data 1H &amp; 1D dari Yahoo';
+  $('swingBadge').textContent='0'; $('swingSpinner').style.display='';
+}
+
+// ============================================================
+// RENDER BSJP CARD
+// ============================================================
+function renderBSJPCard(d) {
+  $('bsjpResults').style.display='';
+  const cr = checkBSJP(d);
+  const sl=getSL(d), tp=d.price+(d.price-sl)*2;
+  const tc=trendColor(d.trend);
+  const rsiC=rsiColor(d.rsi);
+  const card=document.createElement('div');
+  card.className='scard'; card.style.setProperty('--card-accent','var(--bsjp)');
+  card.onclick=()=>openModal(d,'bsjp');
+  card.innerHTML=`
+    <div class="scard-head">
+      <div><div class="scard-ticker">${d.code}</div>
+        <div class="scard-tags">
+          <span class="tag tag-idx">${bsjpIdx}</span>
+          <span class="tag" style="color:${tc};border-color:${tc}44;background:${tc}12">${d.trend}</span>
         </div>
       </div>
-    </div>
-    <div class="card-metrics">
-      <div class="metric">
-        <div class="metric-label">vs MA5</div>
-        <div class="metric-value ok">${fmtPrice(d.ma5)}</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Vol Ratio</div>
-        <div class="metric-value ok">${d.volRatio.toFixed(2)}×</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Value</div>
-        <div class="metric-value ok">${fmtRp(d.value)}</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Harga Kemarin</div>
-        <div class="metric-value">${fmtPrice(d.prevPrice)}</div>
+      <div class="scard-right">
+        <div class="scard-price">${fmtP(d.price)}</div>
+        <div class="scard-chg ${d.change>=0?'up':'down'}">${d.change>=0?'▲':'▼'} ${fmtPct(d.change)}</div>
       </div>
     </div>
-    <div class="card-criteria">
-      <div class="crit">C1<span>+5%</span></div>
-      <div class="crit">C2<span>MA5</span></div>
-      <div class="crit">C3<span>Vol</span></div>
-      <div class="crit">C4<span>&gt;1M</span></div>
+    <div class="scard-metrics">
+      <div class="metric-box"><span class="label">RSI14</span><div class="metric-val" style="color:${rsiC}">${fmtN(d.rsi)}</div></div>
+      <div class="metric-box"><span class="label">MA5</span><div class="metric-val">${fmtP(d.ma5)}</div></div>
+      <div class="metric-box"><span class="label">Vol ×</span><div class="metric-val up">${d.volRatio.toFixed(2)}×</div></div>
+      <div class="metric-box"><span class="label">Value</span><div class="metric-val">${fmtRp(d.value)}</div></div>
     </div>
-  `;
-  grid.appendChild(card);
+    <div class="scard-trade">
+      <div class="trade-box tb-e"><span class="label">Entry</span><div class="trade-val">${fmtP(d.price)}</div></div>
+      <div class="trade-box tb-tp"><span class="label">TP 1:2</span><div class="trade-val">${fmtP(tp)}</div></div>
+      <div class="trade-box tb-sl"><span class="label">Stop Loss</span><div class="trade-val">${fmtP(sl)}</div></div>
+    </div>
+    <div class="scard-footer">
+      <div class="crit-pass crit-bsjp">C1<span>+5%</span></div>
+      <div class="crit-pass crit-bsjp">C2<span>MA5</span></div>
+      <div class="crit-pass crit-bsjp">C3<span>Vol</span></div>
+      <div class="crit-pass crit-bsjp">C4<span>&gt;1M</span></div>
+    </div>`;
+  $('bsjpGrid').appendChild(card);
 }
 
-// ================================================================
-// RESET
-// ================================================================
-function resetAll() {
-  if (scanning) return;
-  passResults = [];
-  document.getElementById('emptyState').style.display = '';
-  document.getElementById('noResults').classList.remove('show');
-  document.getElementById('resultsSection').classList.remove('show');
-  document.getElementById('statsGrid').classList.remove('show');
-  document.getElementById('progressWrap').classList.remove('show');
-  document.getElementById('cardsGrid').innerHTML = '';
-  document.getElementById('scanBtnTxt').textContent = 'Scan Sekarang';
-  document.getElementById('scanNote').textContent = 'Pilih indeks lalu klik Scan\nData dari Yahoo Finance via proxy';
-  document.getElementById('spinEl').style.display = '';
+// ============================================================
+// RENDER SWING CARD
+// ============================================================
+function renderSwingCard(d) {
+  $('swingResults').style.display='';
+  const sw=d.sw;
+  const sl=getSL({...d,...d.sr}), tp=d.price+(d.price-sl)*2.5;
+  const tc=trendColor(sw.trendD);
+  const rsiC=rsiColor(sw.rsi1H);
+  const card=document.createElement('div');
+  card.className='scard'; card.style.setProperty('--card-accent','var(--swing)');
+  card.onclick=()=>openModal(d,'swing');
+  const priceDiff1H = sw.ma20_1H ? ((sw.price1H-sw.ma20_1H)/sw.ma20_1H*100).toFixed(1) : '?';
+  card.innerHTML=`
+    <div class="scard-head">
+      <div><div class="scard-ticker">${d.code}</div>
+        <div class="scard-tags">
+          <span class="tag tag-idx">${swingIdx}</span>
+          <span class="tag" style="color:${tc};border-color:${tc}44;background:${tc}12">${sw.trendD}</span>
+          <span class="tag" style="color:var(--swing);border-color:rgba(124,58,237,.3);background:var(--swing-dim)">SWING</span>
+        </div>
+      </div>
+      <div class="scard-right">
+        <div class="scard-price">${fmtP(d.price)}</div>
+        <div class="scard-chg ${d.change>=0?'up':'down'}">${d.change>=0?'▲':'▼'} ${fmtPct(d.change)}</div>
+      </div>
+    </div>
+    <div class="swing-signals">
+      <div class="sig-chip ${sw.s1?'sig-ok':'sig-warn'}">S1 ${sw.s1?'✓':'✗'} &gt;1.25×MA20</div>
+      <div class="sig-chip ${sw.s2?'sig-ok':'sig-warn'}">S2 ${sw.s2?'✓':'✗'} Retracement</div>
+      <div class="sig-chip ${sw.s3?'sig-ok':'sig-warn'}">S3 ${sw.s3?'✓':'✗'} Uptrend 1D</div>
+      <div class="sig-chip ${sw.s4?'sig-ok':'sig-warn'}">S4 ${sw.s4?'✓':'✗'} RSI 50-65</div>
+    </div>
+    <div class="scard-metrics">
+      <div class="metric-box"><span class="label">RSI 1H</span><div class="metric-val" style="color:${rsiC}">${fmtN(sw.rsi1H)}</div></div>
+      <div class="metric-box"><span class="label">vs MA20</span><div class="metric-val up">+${priceDiff1H}%</div></div>
+      <div class="metric-box"><span class="label">Trend 1D</span><div class="metric-val" style="color:${tc};font-size:10px">${sw.trendD.replace('UPTREND ','').replace('KUAT','⚡')}</div></div>
+      <div class="metric-box"><span class="label">Value</span><div class="metric-val">${fmtRp(d.value)}</div></div>
+    </div>
+    <div class="scard-trade">
+      <div class="trade-box tb-e"><span class="label">Entry</span><div class="trade-val">${fmtP(d.price)}</div></div>
+      <div class="trade-box tb-tp"><span class="label">TP 1:2.5</span><div class="trade-val">${fmtP(tp)}</div></div>
+      <div class="trade-box tb-sl"><span class="label">Stop Loss</span><div class="trade-val">${fmtP(sl)}</div></div>
+    </div>`;
+  $('swingGrid').appendChild(card);
 }
 
-// ================================================================
-// CHART MODAL
-// ================================================================
-function openModal(d) {
-  currentTicker = d.code + '.JK';
-  document.getElementById('mTicker').textContent = d.code;
-  document.getElementById('mPrice').textContent = fmtPrice(d.price);
-  const chEl = document.getElementById('mChange');
-  chEl.textContent = (d.change >= 0 ? '▲ ' : '▼ ') + fmtPct(d.change);
-  chEl.className = 'modal-change ' + (d.change >= 0 ? 'up' : 'dn');
-  document.getElementById('modalBg').classList.add('open');
+// ============================================================
+// MODAL — OPEN / CLOSE
+// ============================================================
+function openModal(d, mode) {
+  currentStock = d; currentMode = mode;
+
+  $('mTicker').textContent = d.code;
+  $('mPrice').textContent  = fmtP(d.price);
+
+  const ch=$('mChange');
+  ch.textContent=(d.change>=0?'▲ ':'▼ ')+fmtPct(d.change);
+  ch.className='modal-chg '+(d.change>=0?'up':'down');
+
+  const tr=d.trend||d.sw?.trendD||'—';
+  const tc=trendColor(tr);
+  $('mTrend').textContent=tr;
+  $('mTrend').style.cssText=`color:${tc};border-color:${tc}44;background:${tc}12`;
+
+  // Mode badge
+  const mb=$('mModeBadge');
+  if(mode==='bsjp') { mb.textContent='BSJP'; mb.style.cssText='background:var(--bsjp-dim);color:var(--bsjp);'; }
+  else              { mb.textContent='SWING'; mb.style.cssText='background:var(--swing-dim);color:var(--swing);'; }
+
+  // Show/hide swing setup tab
+  $('mSwingTab').style.display = mode==='swing'?'':'none';
+
+  $('backdrop').classList.add('open');
+  switchMTab('chart');
   setTF(currentTF);
+  buildTrade(d);
 }
 
-function setTF(tf) {
-  currentTF = tf;
-  ['30','60','240','D'].forEach(t => {
-    document.getElementById('tf' + t)?.classList.toggle('active', t === tf);
+function switchMTab(tab) {
+  const tabs = ['chart','technical','swing-setup','trade'];
+  const ids  = ['tabChart','tabTechnical','tabSwingSetup','tabTrade'];
+  ids.forEach((id,i) => $(`${id}`)?.classList.toggle('hidden', tabs[i]!==tab));
+  document.querySelectorAll('.mtab').forEach((btn,i) => {
+    const names=['chart','technical','swing-setup','trade'];
+    btn.classList.toggle('active', names[i]===tab);
   });
-  const sym = 'IDX:' + currentTicker.replace('.JK','');
-  const iframeUrl = `https://s.tradingview.com/widgetembed/?frameElementId=tv&symbol=${sym}&interval=${tf}&hidesidetoolbar=0&symboledit=0&saveimage=1&toolbarbg=161b22&theme=dark&style=1&timezone=Asia%2FJakarta&withdateranges=1&locale=id`;
-  document.getElementById('tvFrame').src = iframeUrl;
-  const direct = `https://www.tradingview.com/chart/?symbol=${sym}&interval=${tf}`;
-  document.getElementById('tvDirectLink').href = direct;
+  if(tab==='technical') loadTechnicalTab(currentTechTF);
+  if(tab==='swing-setup') loadSwingSetup();
 }
 
-function closeModal(e) {
-  if (e.target === document.getElementById('modalBg')) closeModalBtn();
+function closeModal(e) { if(e.target===$('backdrop')) closeModalBtn(); }
+function closeModalBtn() { $('backdrop').classList.remove('open'); $('tvFrame').src=''; }
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModalBtn(); });
+
+// ============================================================
+// CHART
+// ============================================================
+function setTF(tf) {
+  currentTF=tf;
+  ['30','60','240','D'].forEach(t => $('tf'+t)?.classList.toggle('active',t===tf));
+  if(!currentStock) return;
+  const sym='IDX:'+currentStock.code;
+  $('tvFrame').src=`https://s.tradingview.com/widgetembed/?frameElementId=tv&symbol=${sym}&interval=${tf}&hidesidetoolbar=0&symboledit=0&saveimage=1&toolbarbg=f5f7fc&theme=light&style=1&timezone=Asia%2FJakarta&withdateranges=1&locale=id`;
+  $('tvLink').href=`https://www.tradingview.com/chart/?symbol=${sym}&interval=${tf}`;
 }
 
-function closeModalBtn() {
-  document.getElementById('modalBg').classList.remove('open');
-  document.getElementById('tvFrame').src = '';
+// ============================================================
+// TECHNICAL TAB — per TF
+// ============================================================
+async function switchTechTF(tf) {
+  currentTechTF=tf;
+  ['30','60','240','D'].forEach(t => $('ttf'+t)?.classList.toggle('active',t===tf));
+  await loadTechnicalTab(tf);
 }
 
-// Keyboard
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModalBtn();
-});
+async function loadTechnicalTab(tf) {
+  const d=currentStock; if(!d) return;
+  $('techContent').innerHTML=`<div class="tech-loading"><div class="spinner"></div>Memuat ${TF_CONFIG[tf].label}...</div>`;
+  try {
+    let bars;
+    if(tf==='D'&&d.bars) { bars=d.bars; if(!techCache[d.code]) techCache[d.code]={}; techCache[d.code]['D']=bars; }
+    else bars = await fetchTFBars(d.code, tf);
+    const t=calcTechnicals(bars);
+    if(!t) { $('techContent').innerHTML='<div class="tech-loading">Data tidak cukup.</div>'; return; }
+    renderTechnical(t,d,tf,bars);
+  } catch(e) {
+    $('techContent').innerHTML=`<div class="tech-loading" style="color:var(--red)">Gagal: ${e.message}</div>`;
+  }
+}
+
+function calcTechnicals(bars) {
+  if(!bars||bars.length<5) return null;
+  const closes=bars.map(b=>b.c), last=bars[bars.length-1];
+  const ma5=maN(bars,5),ma20=maN(bars,20),ma50=maN(bars,50),ma100=maN(bars,100);
+  const rsi=calcRSI(closes), trend=detectTrend(last.c,ma20,ma50);
+  const sr=calcSR(bars.slice(-Math.min(bars.length,30)));
+  const stoch=calcStoch(bars,14), macd=calcMACD(closes), bb=calcBB(closes);
+  return{last,ma5,ma20,ma50,ma100,rsi,trend,stoch,macd,bb,...sr};
+}
+
+function renderTechnical(t,d,tf,bars) {
+  const price=t.last.c,tC=trendColor(t.trend),rsiC=rsiColor(t.rsi);
+  const maRow=(label,val)=>{
+    if(!val) return `<div class="tech-row"><div class="tech-name">${label}</div><div class="tech-right"><div class="tech-val" style="color:var(--text-4)">N/A</div></div></div>`;
+    const above=price>=val,pct=((price-val)/val*100);
+    return `<div class="tech-row"><div class="tech-name">${label}</div><div class="tech-right"><div class="tech-val">${fmtP(val)}</div><div class="tech-badge ${above?'badge-up':'badge-down'}">${above?'▲':'▼'} ${Math.abs(pct).toFixed(2)}%</div></div></div>`;
+  };
+  let macdH='<div class="tech-val" style="color:var(--text-4)">N/A</div>';
+  if(t.macd){const mc=t.macd;macdH=`<div class="tech-val">${mc.macd.toFixed(2)}</div><div class="tech-badge ${mc.bullish?'badge-up':'badge-down'}">${mc.bullish?'Bullish':'Bearish'}</div>`;}
+  let stochH='<div class="tech-val" style="color:var(--text-4)">N/A</div>';
+  if(t.stoch!=null){const sc=t.stoch,sl2=sc>=80?'Overbought':sc<=20?'Oversold':'Normal',sb=sc>=80?'badge-ob':sc<=20?'badge-os':'badge-neu';stochH=`<div class="tech-val">${sc.toFixed(1)}</div><div class="tech-badge ${sb}">${sl2}</div>`;}
+  let bbH='<div class="tech-val" style="color:var(--text-4)">N/A</div>';
+  if(t.bb){const bb=t.bb,bbl=bb.pct>=80?'Near Upper':bb.pct<=20?'Near Lower':'Mid Band';bbH=`<div class="tech-val">${bb.pct.toFixed(0)}%</div><div class="tech-badge badge-neu">${bbl}</div>`;}
+
+  $('techContent').innerHTML=`<div class="tech-data">
+    <div class="tech-group-title">Harga &amp; Trend — ${TF_CONFIG[tf].label}</div>
+    <div class="tech-row"><div class="tech-name">Harga Terakhir</div><div class="tech-right"><div class="tech-val">${fmtP(price)}</div><div class="tech-badge badge-neu">${price>=t.last.h*.98?'Near High':'Mid Range'}</div></div></div>
+    <div class="tech-row"><div class="tech-name">Trend</div><div class="tech-right"><div class="tech-val" style="color:${tC}">${t.trend}</div></div></div>
+    <div class="tech-row"><div class="tech-name">High / Low</div><div class="tech-right"><div class="tech-val"><span style="color:var(--green)">${fmtP(t.last.h)}</span><span style="color:var(--text-3)"> / </span><span style="color:var(--red)">${fmtP(t.last.l)}</span></div></div></div>
+    <div class="tech-group-title">Momentum</div>
+    <div class="tech-row rsi-row">
+      <div style="display:flex;justify-content:space-between;align-items:center;width:100%"><div class="tech-name">RSI (14)</div><div class="tech-right"><div class="tech-val" style="color:${rsiC}">${fmtN(t.rsi)}</div><div class="tech-badge ${t.rsi>=70?'badge-ob':t.rsi<=30?'badge-os':'badge-neu'}">${rsiLabel(t.rsi)}</div></div></div>
+      <div style="width:100%"><div class="rsi-gauge"><div class="rsi-needle" style="left:${Math.min(Math.max(t.rsi||50,0),100)}%"></div></div><div class="rsi-labels"><span>0</span><span>30</span><span>50</span><span>70</span><span>100</span></div></div>
+    </div>
+    <div class="tech-row"><div class="tech-name">Stochastic (14)</div><div class="tech-right">${stochH}</div></div>
+    <div class="tech-row"><div class="tech-name">MACD (12,26,9)</div><div class="tech-right">${macdH}</div></div>
+    <div class="tech-group-title">Moving Average</div>
+    ${maRow('MA5',t.ma5)}${maRow('MA20',t.ma20)}${maRow('MA50',t.ma50)}${maRow('MA100',t.ma100)}
+    <div class="tech-group-title">Bollinger Bands (20, 2)</div>
+    <div class="tech-row"><div class="tech-name">Upper Band</div><div class="tech-right"><div class="tech-val" style="color:var(--red)">${t.bb?fmtP(t.bb.upper):'N/A'}</div></div></div>
+    <div class="tech-row"><div class="tech-name">Middle (MA20)</div><div class="tech-right"><div class="tech-val">${t.bb?fmtP(t.bb.mid):'N/A'}</div></div></div>
+    <div class="tech-row"><div class="tech-name">Lower Band</div><div class="tech-right"><div class="tech-val" style="color:var(--green)">${t.bb?fmtP(t.bb.lower):'N/A'}</div></div></div>
+    <div class="tech-row"><div class="tech-name">%B Posisi Harga</div><div class="tech-right">${bbH}</div></div>
+    <div class="tech-group-title">Support &amp; Resistance — Pivot Points</div>
+    <div class="sr-levels">
+      <div class="sr-row sr-r"><span class="sr-tag" style="color:var(--red)">R2</span><span class="sr-name">Resistance 2</span><span class="sr-val">${fmtP(t.r2)}</span><span class="sr-pct" style="color:var(--red)">${t.r2?'+'+((t.r2-price)/price*100).toFixed(2)+'%':''}</span></div>
+      <div class="sr-row sr-r"><span class="sr-tag" style="color:var(--red)">R1</span><span class="sr-name">Resistance 1</span><span class="sr-val">${fmtP(t.r1)}</span><span class="sr-pct" style="color:var(--red)">${t.r1?'+'+((t.r1-price)/price*100).toFixed(2)+'%':''}</span></div>
+      <div class="sr-row sr-c"><span class="sr-tag" style="color:var(--accent)">NOW</span><span class="sr-name">Harga Sekarang</span><span class="sr-val" style="color:var(--accent)">${fmtP(price)}</span><span class="sr-pct">—</span></div>
+      <div class="sr-row sr-s"><span class="sr-tag" style="color:var(--green)">S1</span><span class="sr-name">Support 1</span><span class="sr-val">${fmtP(t.s1)}</span><span class="sr-pct" style="color:var(--green)">${t.s1?((t.s1-price)/price*100).toFixed(2)+'%':''}</span></div>
+      <div class="sr-row sr-s"><span class="sr-tag" style="color:var(--green)">S2</span><span class="sr-name">Support 2</span><span class="sr-val">${fmtP(t.s2)}</span><span class="sr-pct" style="color:var(--green)">${t.s2?((t.s2-price)/price*100).toFixed(2)+'%':''}</span></div>
+    </div>
+  </div>
+  <div class="tf-note">ℹ️ Data ${TF_CONFIG[tf].label} — ${bars?.length||'?'} candle. Indikator dihitung dari OHLCV Yahoo Finance.</div>`;
+}
+
+// ============================================================
+// SWING SETUP TAB
+// ============================================================
+async function loadSwingSetup() {
+  const d=currentStock;
+  if(!d||currentMode!=='swing') { $('swingSetupContent').innerHTML='<div class="tech-loading">Buka dari hasil Swing Scanner.</div>'; return; }
+  const sw=d.sw;
+  if(!sw) { $('swingSetupContent').innerHTML='<div class="tech-loading">Data swing tidak tersedia.</div>'; return; }
+
+  const tC=trendColor(sw.trendD);
+  const rsiC=rsiColor(sw.rsi1H);
+  const priceDiff=sw.ma20_1H?((sw.price1H-sw.ma20_1H)/sw.ma20_1H*100).toFixed(2):'?';
+
+  const sigHtml = (pass,label,detail) =>
+    `<div class="sig ${pass?'sig-green':'sig-orange'}"><span>${pass?'✓':'✗'}</span><span>${label}</span>${detail?`<span style="opacity:.7;font-weight:400">· ${detail}</span>`:''}`;
+
+  $('swingSetupContent').innerHTML=`
+    <div class="swing-setup-box">
+      <div class="ssb-title">🌊 Analisis Setup Swing Trade</div>
+      <div class="ssb-grid">
+        <div class="ssb-item">
+          <span class="label">Harga Saat Ini (1H)</span>
+          <div class="ssb-val">${fmtP(sw.price1H)}</div>
+          <div class="ssb-sub">Candle terakhir 1 jam</div>
+        </div>
+        <div class="ssb-item">
+          <span class="label">MA20 (1 Jam)</span>
+          <div class="ssb-val">${fmtP(sw.ma20_1H)}</div>
+          <div class="ssb-sub">+${priceDiff}% di atas MA20</div>
+        </div>
+        <div class="ssb-item">
+          <span class="label">RSI14 (1 Jam)</span>
+          <div class="ssb-val" style="color:${rsiC}">${fmtN(sw.rsi1H)}</div>
+          <div class="ssb-sub">${rsiLabel(sw.rsi1H)} · Target: 50–65</div>
+        </div>
+        <div class="ssb-item">
+          <span class="label">Trend (1 Hari)</span>
+          <div class="ssb-val" style="color:${tC}">${sw.trendD}</div>
+          <div class="ssb-sub">Berdasarkan MA20 &amp; MA50 daily</div>
+        </div>
+      </div>
+      <div class="signal-row">
+        ${sigHtml(sw.s1,'Harga > 1.25× MA20',sw.ma20_1H?`MA20=${fmtP(sw.ma20_1H)}`:'')}</div>
+        ${sigHtml(sw.s2,'Retracement Terdeteksi',sw.retrace?'candle bearish/upper wick':'belum ada sinyal')}</div>
+        ${sigHtml(sw.s3,'Uptrend di 1H',sw.trendD)}</div>
+        ${sigHtml(sw.s4,'RSI 50–65',sw.rsi1H!=null?`RSI=${fmtN(sw.rsi1H)}`:'')}</div>
+      </div>
+    </div>
+
+    <div class="tech-group-title" style="border-top:none;padding-top:0">Ringkasan Setup</div>
+    ${sw.pass?`
+      <div style="background:var(--green-dim);border:1px solid rgba(22,163,74,.2);border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:13px;color:var(--green);font-weight:600;line-height:1.7">
+        ✅ <strong>${d.code}</strong> memenuhi semua 4 kriteria swing trade.<br>
+        Saham sedang dalam <strong>${sw.trendD}</strong> di timeframe harian,
+        dengan candle retracement pada TF 1 jam dan RSI di zona ideal (50–65).
+        Setup ini mengindikasikan potensi entry swing yang baik — tunggu konfirmasi candle bullish berikutnya.
+      </div>` : `
+      <div style="background:var(--gold-dim);border:1px solid rgba(180,83,9,.15);border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:13px;color:var(--gold);line-height:1.6">
+        ⚠️ Setup belum sempurna — ${[!sw.s1&&'harga belum cukup di atas MA20',!sw.s2&&'belum ada retracement',!sw.s3&&'trend 1D belum uptrend',!sw.s4&&'RSI di luar zona 50-65'].filter(Boolean).join(', ')}.
+      </div>`}
+
+    <div class="tech-group-title">Panduan Entry</div>
+    <div class="tech-row"><div class="tech-name">Timing Entry Ideal</div><div class="tech-right"><div class="tech-val" style="font-size:12px">Candle hijau setelah retracement</div></div></div>
+    <div class="tech-row"><div class="tech-name">Konfirmasi Volume</div><div class="tech-right"><div class="tech-val" style="font-size:12px">Volume di atas MA20 Vol saat rebound</div></div></div>
+    <div class="tech-row"><div class="tech-name">Target RSI Entry</div><div class="tech-right"><div class="tech-val" style="color:var(--swing)">50 – 60</div></div></div>
+    <div class="tech-row"><div class="tech-name">Exit Signal</div><div class="tech-right"><div class="tech-val" style="font-size:12px">RSI &gt; 70 atau candle bearish kuat</div></div></div>
+
+    <div class="tf-note" style="margin-top:14px">ℹ️ Analisis berdasarkan data 1H dan 1D dari Yahoo Finance. Bukan rekomendasi investasi.</div>
+  `;
+}
+
+// ============================================================
+// TRADE TAB
+// ============================================================
+function buildTrade(d) {
+  const sr = d.sr || d;
+  $('trR2').textContent=fmtP(sr.r2);
+  $('trR1').textContent=fmtP(sr.r1);
+  $('trS1').textContent=fmtP(sr.s1);
+  $('trS2').textContent=fmtP(sr.s2);
+  $('rrSlider').value=20;
+  updateTrade();
+}
+
+function updateTrade() {
+  const d=currentStock; if(!d) return;
+  const rr=parseInt($('rrSlider').value)/10;
+  const entry=d.price, sl=getSL({...d,...(d.sr||{})});
+  const risk=entry-sl, tp=entry+risk*rr;
+  const rPct=(risk/entry*100), wPct=((tp-entry)/entry*100);
+  $('rrDisp').textContent=`1 : ${rr.toFixed(1)}`;
+  $('tcEntry').textContent=fmtP(entry);
+  $('tcTP').textContent=fmtP(tp); $('tcTPSub').textContent=`+${wPct.toFixed(2)}% dari entry`;
+  $('tcSL').textContent=fmtP(sl);  $('tcSLSub').textContent=`−${rPct.toFixed(2)}% dari entry`;
+  $('pvTP').textContent='+'+wPct.toFixed(2)+'%';
+  $('pvSL').textContent='−'+rPct.toFixed(2)+'%';
+  const total=rPct+wPct;
+  $('barSL').style.width=(rPct/total*100).toFixed(1)+'%';
+  $('barTP').style.width=(wPct/total*100).toFixed(1)+'%';
+}
+
+// ── Init
+switchAppMode('bsjp');
 </script>
 </body>
 </html>
