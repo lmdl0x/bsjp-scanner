@@ -750,10 +750,11 @@ body::before {
 
     <!-- Criteria chips -->
     <div class="crit-row">
-      <div class="crit-chip"><span class="crit-num crit-num-swing">S1</span> Harga &gt; 1.25× MA20 (1H)</div>
-      <div class="crit-chip"><span class="crit-num crit-num-swing">S2</span> Candle terakhir retracement (1H)</div>
-      <div class="crit-chip"><span class="crit-num crit-num-swing">S3</span> Uptrend aktif di timeframe 1 Hari</div>
-      <div class="crit-chip"><span class="crit-num crit-num-swing">S4</span> RSI14 &gt; 50 dan &lt; 65 (1H)</div>
+      <div class="crit-chip"><span class="crit-num crit-num-swing">S1</span> Harga &gt; 1.15× MA20 (1D)</div>
+      <div class="crit-chip"><span class="crit-num crit-num-swing">S2</span> Retracement/rebound ke atas (1D)</div>
+      <div class="crit-chip"><span class="crit-num crit-num-swing">S3</span> Uptrend aktif (1D)</div>
+      <div class="crit-chip"><span class="crit-num crit-num-swing">S4</span> RSI14 &gt; 50 dan &lt; 65 (1D)</div>
+      <div class="crit-chip"><span class="crit-num crit-num-swing">S5</span> Value transaksi &gt; Rp 1 Miliar</div>
     </div>
 
     <!-- Controls -->
@@ -848,12 +849,6 @@ body::before {
 
       <!-- CHART -->
       <div class="tab-panel" id="tabChart">
-        <div class="tf-row">
-          <button class="tf-btn" onclick="setTF('30')"  id="tf30">30m</button>
-          <button class="tf-btn active" onclick="setTF('60')"  id="tf60">1 Jam</button>
-          <button class="tf-btn" onclick="setTF('240')" id="tf240">4 Jam</button>
-          <button class="tf-btn" onclick="setTF('D')"   id="tfD">1 Hari</button>
-        </div>
         <div class="chart-frame"><iframe id="tvFrame" src=""></iframe></div>
         <div class="chart-foot"><a id="tvLink" href="#" target="_blank">Buka chart penuh di TradingView ↗</a></div>
       </div>
@@ -1189,15 +1184,28 @@ function calcSR(bars) {
   return{s1,s2:Math.min(s2,lows[Math.floor(lows.length*.1)]),r1,r2:Math.max(r2,his[Math.floor(his.length*.1)])};
 }
 
-function isRetracement(bars) {
-  // candle terakhir adalah retracement: close < open (bearish candle) ATAU close turun dari bar sebelumnya
-  if (bars.length < 2) return false;
+function isRetracementDaily(bars) {
+  // Deteksi retracement ATAU rebound ke atas di timeframe 1 Hari
+  // Retracement: candle terakhir bearish setelah beberapa candle naik (koreksi wajar)
+  // Rebound: setelah turun, candle terakhir bullish/recovery (sinyal balik naik)
+  if (bars.length < 3) return false;
   const last = bars[bars.length-1];
   const prev = bars[bars.length-2];
-  const bearishCandle = last.c < last.o;              // bearish body
-  const closeLower    = last.c < prev.c;              // harga turun dari sebelumnya
-  const upperWick     = last.h > Math.max(last.o,last.c) * 1.002; // ada upper wick
-  return bearishCandle || (closeLower && upperWick);
+  const prev2= bars[bars.length-3];
+
+  const lastBearish  = last.c < last.o;                        // body bearish
+  const lastBullish  = last.c > last.o;                        // body bullish (rebound)
+  const prevBullish  = prev.c > prev.o;                        // sebelumnya bullish
+  const closedHigher = last.c > prev.c;                        // harga naik (rebound)
+
+  // Scenario A — Retracement: bar sebelumnya naik, bar terakhir koreksi ke bawah
+  const retracement = prevBullish && lastBearish;
+
+  // Scenario B — Rebound: 1-2 bar sebelumnya turun, bar terakhir bangkit kembali
+  const prevDecline  = prev.c < prev2.c;
+  const rebound      = prevDecline && lastBullish && closedHigher;
+
+  return retracement || rebound;
 }
 
 // ============================================================
@@ -1234,51 +1242,44 @@ function checkBSJP(d) {
 // SWING FETCH + CRITERIA
 // ============================================================
 async function fetchForSwing(code) {
-  // Need 1D bars (for trend, MA20) AND 1H bars (for retracement + RSI check)
+  // Semua kriteria berbasis timeframe 1 Hari (daily)
   const barsD = await fetchDaily(code);
   if (barsD.length < 20) throw new Error('insufficient');
 
-  const bars1H = await fetchTFBars(code, '60');
-  if (bars1H.length < 20) throw new Error('insufficient-1h');
-
-  // Daily: MA20 and trend
-  const ma20D = maN(barsD, 20);
-  const ma50D = maN(barsD, 50);
   const lastD  = barsD[barsD.length-1];
+  const prevD  = barsD[barsD.length-2];
+  const ma20D  = maN(barsD, 20);
+  const ma50D  = maN(barsD, 50);
+  const ma5D   = maN(barsD, 5);
+  const ma100D = maN(barsD, 100);
+  const closes = barsD.map(b => b.c);
+  const rsiD   = calcRSI(closes);
   const trendD = detectTrend(lastD.c, ma20D, ma50D);
+  const retrace = isRetracementDaily(barsD);
+  const sr     = calcSR(barsD.slice(-30));
+  const value  = lastD.c * lastD.v;
 
-  // 1H: current price, MA20, RSI, retracement
-  const last1H  = bars1H[bars1H.length-1];
-  const price1H = last1H.c;
-  const ma20_1H = maN(bars1H, 20);
-  const rsi1H   = calcRSI(bars1H.map(b=>b.c));
-  const retrace = isRetracement(bars1H);
-
-  // Criteria per spec
-  const s1 = ma20_1H && price1H > 1.25 * ma20_1H;
-  const s2 = retrace;
-  const s3 = trendD.includes('UPTREND');          // uptrend di 1D
-  const s4 = rsi1H !== null && rsi1H > 50 && rsi1H < 65;
-
-  const ma5D=maN(barsD,5),ma100D=maN(barsD,100);
-  const sr=calcSR(barsD.slice(-30));
+  // ── 5 Kriteria Swing Trade (semua 1D) ────────────────────
+  const sw_s1 = ma20D && lastD.c > 1.15 * ma20D;         // Harga > 1.15× MA20 daily
+  const sw_s2 = retrace;                                   // Retracement/rebound di 1D
+  const sw_s3 = trendD.includes('UPTREND');               // Uptrend di 1D
+  const sw_s4 = rsiD !== null && rsiD > 50 && rsiD < 65; // RSI14 50–65 di 1D
+  const sw_s5 = value > 1e9;                              // Value > Rp 1 miliar
 
   return {
-    code, bars:barsD, bars1H,
-    price:lastD.c, price1H,
-    prevPrice:barsD[barsD.length-2].c,
-    high:lastD.h, low:lastD.l,
-    volume:lastD.v, prevVolume:barsD[barsD.length-2].v,
-    value:lastD.c*lastD.v,
-    change:(lastD.c-barsD[barsD.length-2].c)/barsD[barsD.length-2].c,
-    volRatio:barsD[barsD.length-2].v>0?lastD.v/barsD[barsD.length-2].v:0,
+    code, bars: barsD,
+    price: lastD.c, prevPrice: prevD.c,
+    high: lastD.h, low: lastD.l,
+    volume: lastD.v, prevVolume: prevD.v,
+    value,
+    change: (lastD.c - prevD.c) / prevD.c,
+    volRatio: prevD.v > 0 ? lastD.v / prevD.v : 0,
     ma5D, ma20D, ma50D, ma100D,
-    ma20_1H, rsi1H, retrace, trendD,
-    s1,s2,s3,s4, pass:s1&&s2&&s3&&s4,
-    s1:sr.s1,s2:sr.s2,r1:sr.r1,r2:sr.r2,
-    // overwrite s1/s2 to keep SR names distinct
-    sr:{s1:sr.s1,s2:sr.s2,r1:sr.r1,r2:sr.r2},
-    sw:{s1,s2,s3,s4,ma20_1H,rsi1H,retrace,trendD,price1H},
+    rsiD, trendD, retrace,
+    pass: sw_s1 && sw_s2 && sw_s3 && sw_s4 && sw_s5,
+    sr,
+    sw: { s1:sw_s1, s2:sw_s2, s3:sw_s3, s4:sw_s4, s5:sw_s5,
+          ma20D, rsiD, trendD, retrace, value },
   };
 }
 
@@ -1541,15 +1542,16 @@ function renderBSJPCard(d) {
 // ============================================================
 function renderSwingCard(d) {
   $('swingResults').style.display='';
-  const sw=d.sw;
-  const sl=getSL({...d,...d.sr}), tp=d.price+(d.price-sl)*2.5;
-  const tc=trendColor(sw.trendD);
-  const rsiC=rsiColor(sw.rsi1H);
-  const card=document.createElement('div');
-  card.className='scard'; card.style.setProperty('--card-accent','var(--swing)');
-  card.onclick=()=>openModal(d,'swing');
-  const priceDiff1H = sw.ma20_1H ? ((sw.price1H-sw.ma20_1H)/sw.ma20_1H*100).toFixed(1) : '?';
-  card.innerHTML=`
+  const sw = d.sw;
+  const sl = getSL({...d, ...d.sr}), tp = d.price + (d.price - sl) * 2.5;
+  const tc = trendColor(sw.trendD);
+  const rsiC = rsiColor(sw.rsiD);
+  const card = document.createElement('div');
+  card.className = 'scard';
+  card.style.setProperty('--card-accent','var(--swing)');
+  card.onclick = () => openModal(d,'swing');
+  const priceDiff = sw.ma20D ? ((d.price - sw.ma20D) / sw.ma20D * 100).toFixed(1) : '?';
+  card.innerHTML = `
     <div class="scard-head">
       <div><div class="scard-ticker">${d.code}</div>
         <div class="scard-tags">
@@ -1564,14 +1566,15 @@ function renderSwingCard(d) {
       </div>
     </div>
     <div class="swing-signals">
-      <div class="sig-chip ${sw.s1?'sig-ok':'sig-warn'}">S1 ${sw.s1?'✓':'✗'} &gt;1.25×MA20</div>
-      <div class="sig-chip ${sw.s2?'sig-ok':'sig-warn'}">S2 ${sw.s2?'✓':'✗'} Retracement</div>
+      <div class="sig-chip ${sw.s1?'sig-ok':'sig-warn'}">S1 ${sw.s1?'✓':'✗'} &gt;1.15×MA20</div>
+      <div class="sig-chip ${sw.s2?'sig-ok':'sig-warn'}">S2 ${sw.s2?'✓':'✗'} Retrace/Rebound</div>
       <div class="sig-chip ${sw.s3?'sig-ok':'sig-warn'}">S3 ${sw.s3?'✓':'✗'} Uptrend 1D</div>
-      <div class="sig-chip ${sw.s4?'sig-ok':'sig-warn'}">S4 ${sw.s4?'✓':'✗'} RSI 50-65</div>
+      <div class="sig-chip ${sw.s4?'sig-ok':'sig-warn'}">S4 ${sw.s4?'✓':'✗'} RSI 50–65</div>
+      <div class="sig-chip ${sw.s5?'sig-ok':'sig-warn'}">S5 ${sw.s5?'✓':'✗'} &gt;1M</div>
     </div>
     <div class="scard-metrics">
-      <div class="metric-box"><span class="label">RSI 1H</span><div class="metric-val" style="color:${rsiC}">${fmtN(sw.rsi1H)}</div></div>
-      <div class="metric-box"><span class="label">vs MA20</span><div class="metric-val up">+${priceDiff1H}%</div></div>
+      <div class="metric-box"><span class="label">RSI 1D</span><div class="metric-val" style="color:${rsiC}">${fmtN(sw.rsiD)}</div></div>
+      <div class="metric-box"><span class="label">vs MA20</span><div class="metric-val up">+${priceDiff}%</div></div>
       <div class="metric-box"><span class="label">Trend 1D</span><div class="metric-val" style="color:${tc};font-size:10px">${sw.trendD.replace('UPTREND ','').replace('KUAT','⚡')}</div></div>
       <div class="metric-box"><span class="label">Value</span><div class="metric-val">${fmtRp(d.value)}</div></div>
     </div>
@@ -1635,12 +1638,12 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') closeModalBtn()
 // CHART
 // ============================================================
 function setTF(tf) {
-  currentTF=tf;
-  ['30','60','240','D'].forEach(t => $('tf'+t)?.classList.toggle('active',t===tf));
-  if(!currentStock) return;
-  const sym='IDX:'+currentStock.code;
-  $('tvFrame').src=`https://s.tradingview.com/widgetembed/?frameElementId=tv&symbol=${sym}&interval=${tf}&hidesidetoolbar=0&symboledit=0&saveimage=1&toolbarbg=f5f7fc&theme=light&style=1&timezone=Asia%2FJakarta&withdateranges=1&locale=id`;
-  $('tvLink').href=`https://www.tradingview.com/chart/?symbol=${sym}&interval=${tf}`;
+  currentTF = tf;
+  if (!currentStock) return;
+  const sym = 'IDX:' + currentStock.code;
+  // TradingView default: gunakan interval D (1 hari)
+  $('tvFrame').src = `https://s.tradingview.com/widgetembed/?frameElementId=tv&symbol=${sym}&interval=D&hidesidetoolbar=0&symboledit=0&saveimage=1&toolbarbg=f5f7fc&theme=light&style=1&timezone=Asia%2FJakarta&withdateranges=1&locale=id`;
+  $('tvLink').href = `https://www.tradingview.com/chart/?symbol=${sym}&interval=D`;
 }
 
 // ============================================================
@@ -1726,73 +1729,96 @@ function renderTechnical(t,d,tf,bars) {
 // SWING SETUP TAB
 // ============================================================
 async function loadSwingSetup() {
-  const d=currentStock;
-  if(!d||currentMode!=='swing') { $('swingSetupContent').innerHTML='<div class="tech-loading">Buka dari hasil Swing Scanner.</div>'; return; }
-  const sw=d.sw;
-  if(!sw) { $('swingSetupContent').innerHTML='<div class="tech-loading">Data swing tidak tersedia.</div>'; return; }
+  const d = currentStock;
+  if (!d || currentMode !== 'swing') {
+    $('swingSetupContent').innerHTML = '<div class="tech-loading">Buka dari hasil Swing Scanner.</div>';
+    return;
+  }
+  const sw = d.sw;
+  if (!sw) { $('swingSetupContent').innerHTML = '<div class="tech-loading">Data swing tidak tersedia.</div>'; return; }
 
-  const tC=trendColor(sw.trendD);
-  const rsiC=rsiColor(sw.rsi1H);
-  const priceDiff=sw.ma20_1H?((sw.price1H-sw.ma20_1H)/sw.ma20_1H*100).toFixed(2):'?';
+  const tC    = trendColor(sw.trendD);
+  const rsiC  = rsiColor(sw.rsiD);
+  const priceDiff = sw.ma20D ? ((d.price - sw.ma20D) / sw.ma20D * 100).toFixed(2) : '?';
+  const retLabel  = sw.retrace ? 'Terdeteksi ✓' : 'Belum Terdeteksi';
 
-  const sigHtml = (pass,label,detail) =>
-    `<div class="sig ${pass?'sig-green':'sig-orange'}"><span>${pass?'✓':'✗'}</span><span>${label}</span>${detail?`<span style="opacity:.7;font-weight:400">· ${detail}</span>`:''}`;
+  const sigHtml = (pass, code, label, detail) =>
+    '<div class="sig ' + (pass ? 'sig-green' : 'sig-orange') + '">' +
+    '<span style="font-family:var(--mono);font-weight:700;min-width:22px">' + code + '</span>' +
+    '<span>' + label + '</span>' +
+    (detail ? '<span style="opacity:.65;font-weight:400;font-size:10px"> · ' + detail + '</span>' : '') +
+    '</div>';
 
-  $('swingSetupContent').innerHTML=`
+  $('swingSetupContent').innerHTML = `
     <div class="swing-setup-box">
-      <div class="ssb-title">🌊 Analisis Setup Swing Trade</div>
+      <div class="ssb-title">🌊 Analisis Setup Swing Trade — Timeframe 1 Hari</div>
       <div class="ssb-grid">
         <div class="ssb-item">
-          <span class="label">Harga Saat Ini (1H)</span>
-          <div class="ssb-val">${fmtP(sw.price1H)}</div>
-          <div class="ssb-sub">Candle terakhir 1 jam</div>
+          <span class="label">Harga Penutupan</span>
+          <div class="ssb-val">${fmtP(d.price)}</div>
+          <div class="ssb-sub">Candle harian terakhir</div>
         </div>
         <div class="ssb-item">
-          <span class="label">MA20 (1 Jam)</span>
-          <div class="ssb-val">${fmtP(sw.ma20_1H)}</div>
-          <div class="ssb-sub">+${priceDiff}% di atas MA20</div>
+          <span class="label">MA20 Harian</span>
+          <div class="ssb-val">${fmtP(sw.ma20D)}</div>
+          <div class="ssb-sub">${sw.s1 ? '✓' : '✗'} Harga +${priceDiff}% di atas MA20 (target: &gt;+15%)</div>
         </div>
         <div class="ssb-item">
-          <span class="label">RSI14 (1 Jam)</span>
-          <div class="ssb-val" style="color:${rsiC}">${fmtN(sw.rsi1H)}</div>
-          <div class="ssb-sub">${rsiLabel(sw.rsi1H)} · Target: 50–65</div>
+          <span class="label">RSI 14 (1 Hari)</span>
+          <div class="ssb-val" style="color:${rsiC}">${fmtN(sw.rsiD)}</div>
+          <div class="ssb-sub">${sw.s4 ? '✓ Zona ideal' : '✗ Di luar zona'} · Target: 50–65</div>
         </div>
         <div class="ssb-item">
           <span class="label">Trend (1 Hari)</span>
           <div class="ssb-val" style="color:${tC}">${sw.trendD}</div>
-          <div class="ssb-sub">Berdasarkan MA20 &amp; MA50 daily</div>
+          <div class="ssb-sub">${sw.s3 ? '✓ Uptrend aktif' : '✗ Bukan uptrend'}</div>
+        </div>
+        <div class="ssb-item">
+          <span class="label">Pola Candle 1D</span>
+          <div class="ssb-val" style="font-size:13px">${retLabel}</div>
+          <div class="ssb-sub">Retracement atau rebound ke atas</div>
+        </div>
+        <div class="ssb-item">
+          <span class="label">Value Transaksi</span>
+          <div class="ssb-val">${fmtRp(sw.value)}</div>
+          <div class="ssb-sub">${sw.s5 ? '✓ Likuid' : '✗ Di bawah Rp 1M'}</div>
         </div>
       </div>
       <div class="signal-row">
-        ${sigHtml(sw.s1,'Harga > 1.25× MA20',sw.ma20_1H?`MA20=${fmtP(sw.ma20_1H)}`:'')}</div>
-        ${sigHtml(sw.s2,'Retracement Terdeteksi',sw.retrace?'candle bearish/upper wick':'belum ada sinyal')}</div>
-        ${sigHtml(sw.s3,'Uptrend di 1H',sw.trendD)}</div>
-        ${sigHtml(sw.s4,'RSI 50–65',sw.rsi1H!=null?`RSI=${fmtN(sw.rsi1H)}`:'')}</div>
+        ${sigHtml(sw.s1, 'S1', 'Harga > 1.15× MA20', sw.ma20D ? 'MA20='+fmtP(sw.ma20D) : '')}
+        ${sigHtml(sw.s2, 'S2', 'Retracement / Rebound', retLabel)}
+        ${sigHtml(sw.s3, 'S3', 'Uptrend di 1 Hari', sw.trendD)}
+        ${sigHtml(sw.s4, 'S4', 'RSI14 antara 50–65', sw.rsiD != null ? 'RSI = '+fmtN(sw.rsiD) : '')}
+        ${sigHtml(sw.s5, 'S5', 'Value > Rp 1 Miliar', fmtRp(sw.value))}
       </div>
     </div>
 
     <div class="tech-group-title" style="border-top:none;padding-top:0">Ringkasan Setup</div>
-    ${sw.pass?`
-      <div style="background:var(--green-dim);border:1px solid rgba(22,163,74,.2);border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:13px;color:var(--green);font-weight:600;line-height:1.7">
-        ✅ <strong>${d.code}</strong> memenuhi semua 4 kriteria swing trade.<br>
-        Saham sedang dalam <strong>${sw.trendD}</strong> di timeframe harian,
-        dengan candle retracement pada TF 1 jam dan RSI di zona ideal (50–65).
-        Setup ini mengindikasikan potensi entry swing yang baik — tunggu konfirmasi candle bullish berikutnya.
+    ${sw.s1 && sw.s2 && sw.s3 && sw.s4 && sw.s5 ? `
+      <div style="background:var(--green-dim);border:1px solid rgba(22,163,74,.2);border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:13px;color:var(--green);font-weight:600;line-height:1.8">
+        ✅ <strong>${d.code}</strong> memenuhi semua 5 kriteria swing trade.<br>
+        Saham sedang dalam <strong>${sw.trendD}</strong>, harga +${priceDiff}% di atas MA20 harian.
+        RSI di zona ideal (${fmtN(sw.rsiD)}) — potensi momentum lanjut ke atas.
       </div>` : `
-      <div style="background:var(--gold-dim);border:1px solid rgba(180,83,9,.15);border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:13px;color:var(--gold);line-height:1.6">
-        ⚠️ Setup belum sempurna — ${[!sw.s1&&'harga belum cukup di atas MA20',!sw.s2&&'belum ada retracement',!sw.s3&&'trend 1D belum uptrend',!sw.s4&&'RSI di luar zona 50-65'].filter(Boolean).join(', ')}.
+      <div style="background:var(--gold-dim);border:1px solid rgba(180,83,9,.15);border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:13px;color:var(--gold);line-height:1.7">
+        ⚠️ Setup belum sempurna —
+        ${[!sw.s1 && 'harga belum 15% di atas MA20 (saat ini +'+priceDiff+'%)',
+           !sw.s2 && 'belum ada pola retracement/rebound di 1D',
+           !sw.s3 && 'trend 1D: '+sw.trendD,
+           !sw.s4 && 'RSI '+fmtN(sw.rsiD)+' di luar zona 50-65',
+           !sw.s5 && 'value '+fmtRp(sw.value)+' di bawah Rp 1M'].filter(Boolean).join(' · ')}.
       </div>`}
 
-    <div class="tech-group-title">Panduan Entry</div>
-    <div class="tech-row"><div class="tech-name">Timing Entry Ideal</div><div class="tech-right"><div class="tech-val" style="font-size:12px">Candle hijau setelah retracement</div></div></div>
-    <div class="tech-row"><div class="tech-name">Konfirmasi Volume</div><div class="tech-right"><div class="tech-val" style="font-size:12px">Volume di atas MA20 Vol saat rebound</div></div></div>
-    <div class="tech-row"><div class="tech-name">Target RSI Entry</div><div class="tech-right"><div class="tech-val" style="color:var(--swing)">50 – 60</div></div></div>
-    <div class="tech-row"><div class="tech-name">Exit Signal</div><div class="tech-right"><div class="tech-val" style="font-size:12px">RSI &gt; 70 atau candle bearish kuat</div></div></div>
+    <div class="tech-group-title">Panduan Entry Swing</div>
+    <div class="tech-row"><div class="tech-name">Timing Entry Ideal</div><div class="tech-right"><div class="tech-val" style="font-size:12px">Candle hijau konfirmasi setelah retracement/rebound</div></div></div>
+    <div class="tech-row"><div class="tech-name">Konfirmasi Volume</div><div class="tech-right"><div class="tech-val" style="font-size:12px">Volume rebound lebih besar dari candle turun</div></div></div>
+    <div class="tech-row"><div class="tech-name">RSI Entry Target</div><div class="tech-right"><div class="tech-val" style="color:var(--swing)">50 – 60 (1 Hari)</div></div></div>
+    <div class="tech-row"><div class="tech-name">Exit / Take Profit</div><div class="tech-right"><div class="tech-val" style="font-size:12px">RSI &gt; 65–70 atau candle bearish kuat (1D)</div></div></div>
+    <div class="tech-row"><div class="tech-name">Stop Loss Acuan</div><div class="tech-right"><div class="tech-val" style="font-size:12px">Di bawah Support 1 / swing low terdekat</div></div></div>
 
-    <div class="tf-note" style="margin-top:14px">ℹ️ Analisis berdasarkan data 1H dan 1D dari Yahoo Finance. Bukan rekomendasi investasi.</div>
+    <div class="tf-note" style="margin-top:14px">ℹ️ Semua analisis berbasis timeframe <strong>1 Hari</strong>. Bukan rekomendasi investasi — DYOR.</div>
   `;
 }
-
 // ============================================================
 // TRADE TAB
 // ============================================================
